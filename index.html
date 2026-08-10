@@ -69,6 +69,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     --series-prop: #4a3aa7;
     --hover-wash: rgba(11,11,11,0.045);
     --sel-wash: rgba(42,120,214,0.10);
+    --ice-chg: #1c5cab;
+    --ice-dis: #9ec5f4;
+    --pos: #006300;
+    --neg: #d03b3b;
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
@@ -86,6 +90,10 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     --series-prop: #9085e9;
     --hover-wash: rgba(255,255,255,0.06);
     --sel-wash: rgba(57,135,229,0.16);
+    --ice-chg: #256abf;
+    --ice-dis: #9ec5f4;
+    --pos: #0ca30c;
+    --neg: #d03b3b;
   }
   * { box-sizing: border-box; }
   body {
@@ -161,6 +169,67 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   tbody tr:hover { background: var(--hover-wash); }
   tbody td .pk { font-weight: 650; }
   .swatch { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: baseline; }
+  .pos { color: var(--pos); font-weight: 650; }
+  .neg { color: var(--neg); font-weight: 650; }
+
+  .ice-inputs { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+  .ice-inputs label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+  .ice-inputs input, .ice-inputs select {
+    width: 96px; padding: 6px 8px; font: inherit; font-size: 13.5px;
+    color: var(--text-primary); background: var(--page); border: 1px solid var(--border);
+    border-radius: 7px; font-variant-numeric: tabular-nums;
+  }
+  .ice-inputs select { width: auto; }
+  .ice-inputs button {
+    border: 1px solid var(--border); background: var(--sel-wash); color: var(--text-primary);
+    font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 8px; cursor: pointer;
+  }
+  .ice-inputs button:hover { filter: brightness(0.97); }
+  .ice-plan { color: var(--text-secondary); font-size: 12.5px; margin: 12px 0 0; }
+  .ice-plan b { color: var(--text-primary); }
+
+  #rateInfo { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .rate-box {
+    border: 1px solid var(--border); border-radius: 9px; background: var(--page);
+    padding: 8px 12px; min-width: 200px; flex: 1 1 200px; max-width: 300px;
+  }
+  .rate-h { color: var(--muted); font-size: 11.5px; font-weight: 600; margin-bottom: 4px; }
+  .rate-r { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; padding: 1.5px 0; }
+  .rate-r span:first-child { color: var(--text-secondary); }
+  .rate-r span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .rate-note { flex-basis: 100%; color: var(--muted); font-size: 12px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin: 8px 0 16px; }
+  .tiles[hidden], #startOverlay[hidden] { display: none; }
+  .tile { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--page); }
+  .tile .lbl { color: var(--muted); font-size: 12px; }
+  .tile .val { font-size: 20px; font-weight: 650; margin-top: 2px; }
+  .tile .val small { font-size: 12.5px; font-weight: 500; color: var(--text-secondary); }
+  .tile .sub2 { color: var(--text-secondary); font-size: 12px; margin-top: 1px; }
+
+  #startOverlay {
+    position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--page) 72%, transparent); backdrop-filter: blur(3px);
+  }
+  #startOverlay .panel {
+    background: var(--surface-1); border: 1px solid var(--border); border-radius: 14px;
+    padding: 26px 28px; max-width: 620px; width: 92%; box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+  }
+  #startOverlay h2 { margin: 0 0 4px; font-size: 17px; }
+  #startOverlay p { margin: 0 0 14px; color: var(--text-secondary); font-size: 13px; }
+  #startOverlay .primary {
+    display: block; width: 100%; text-align: left; margin-bottom: 14px;
+    border: 1px solid var(--border); background: var(--sel-wash); color: var(--text-primary);
+    font: inherit; padding: 12px 16px; border-radius: 10px; cursor: pointer;
+  }
+  #startOverlay .primary b { display: block; font-size: 14.5px; }
+  #startOverlay .primary span { color: var(--text-secondary); font-size: 12.5px; }
+  #startOverlay .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  #startOverlay .grid button {
+    border: 1px solid var(--border); background: transparent; color: var(--text-secondary);
+    font: inherit; font-size: 12.5px; text-align: left; padding: 8px 12px; border-radius: 8px; cursor: pointer;
+  }
+  #startOverlay .grid button:hover { background: var(--hover-wash); }
 </style>
 </head>
 <body>
@@ -174,6 +243,37 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   </header>
 
   <div class="views" id="views" role="group" aria-label="Choose meter view"></div>
+
+  <div class="card" id="iceControls" hidden>
+    <h2 style="font-size:15px;margin:0 0 10px">Ice storage — inputs</h2>
+    <div class="ice-inputs">
+      <label>Tariff
+        <select id="inpTariff">
+          <option value="B-20|Secondary">B-20 · Secondary</option>
+          <option value="B-20|Primary">B-20 · Primary</option>
+          <option value="B-20S|Secondary">B-20S · Secondary</option>
+          <option value="B-20S|Primary">B-20S · Primary</option>
+        </select></label>
+      <label>System size (ton·h)
+        <input id="inpSize" type="number" min="0" step="50" value="0"></label>
+      <button id="autoSizeBtn" type="button" title="Set size to the sweep optimum for max annual kW reduction">Auto-size</button>
+      <label>Charge from (h)
+        <input id="inpChS" type="number" min="0" max="23" step="1" value="22"></label>
+      <label>Charge to (h)
+        <input id="inpChE" type="number" min="0" max="24" step="1" value="10"></label>
+      <label>Discharge from (h)
+        <input id="inpDiS" type="number" min="0" max="23" step="1" value="10"></label>
+      <label>Discharge to (h)
+        <input id="inpDiE" type="number" min="1" max="24" step="1" value="22"></label>
+      <label>Avoided kW/ton (winter / summer)
+        <select id="inpAvoided">
+          <option value="0.5|0.65">0.5 winter · 0.65 summer</option>
+          <option value="1|1.2">1.0 winter · 1.2 summer</option>
+        </select></label>
+    </div>
+    <div id="rateInfo"></div>
+    <p class="ice-plan" id="icePlan"></p>
+  </div>
 
   <div class="card">
     <div class="chart-head">
@@ -192,10 +292,30 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     <p class="hint">Drag across the chart to zoom in · use the strip below to pan · double-click or use the ⟲ icon to reset · click a table row to zoom to that month</p>
   </div>
 
+  <div class="card" id="tariffCard" hidden style="padding-bottom:16px">
+    <table id="tariffTable">
+      <caption>Annual electricity cost — B-20 vs B-20S (PG&E rate tables, Oct 2024 – Sep 2025)</caption>
+    </table>
+    <p class="tbl-sub" id="tariffSub"></p>
+  </div>
+
   <div class="card" style="padding-bottom:16px">
+    <div class="tiles" id="iceSummary" hidden></div>
     <table id="peaksTable">
       <caption id="tblTitle"></caption>
     </table>
+  </div>
+</div>
+
+<div id="startOverlay" hidden>
+  <div class="panel">
+    <h2>What would you like to work on?</h2>
+    <p>Pick a starting point — you can switch views at any time with the buttons at the top.</p>
+    <button class="primary" id="startIce" type="button">
+      <b>Ice storage analysis — accumulated Proposed load</b>
+      <span>Fit night-charging / day-discharging ice storage to the combined Proposed stream (Arena + CC), size the system, and price the savings</span>
+    </button>
+    <div class="grid" id="startGrid"></div>
   </div>
 </div>
 
@@ -225,6 +345,7 @@ const VIEWS = [
   { id: 'pCC',  label: 'Convention Center (CC)', meters: ['pCC'], scen: 'Proposed' },
   { id: 'pStack', label: 'Both, stacked', meters: ['pDHA','pCC'], scen: 'Proposed', stacked: true },
   { id: 'cmp', label: 'Baseline vs. Proposed', meters: ['cBase','cProp'], scen: 'Compare', compare: true },
+  { id: 'ice', label: 'Proposed combined — ice fit', meters: ['cProp'], scen: 'Ice storage', ice: true },
 ];
 
 /* ---------- month partitions & peaks ---------- */
@@ -261,6 +382,371 @@ function peakOf(keys, i0, i1) {
 }
 function monthlyPeaks(keys) { return MONTHS.map(m => ({ m, ...peakOf(keys, m.i0, m.i1) })); }
 
+/* ---------- ice storage simulation (on Proposed combined, cProp) ---------- */
+const KW_PER_TON_CHG = 0.9;
+const SUMMER = mon => mon >= 6 && mon <= 9;   // Jun–Sep
+const ICE = {
+  size: 0, auto: true, rec: 0, maxAnnualGain: 0,
+  chS: 22, chE: 10,     // charge window [chS, chE); chS > chE wraps past midnight (default 22:00 prev day → 10:00)
+  diS: 10, diE: 22,     // discharge window [diS, diE); no wrap (default 10:00 → 22:00)
+  fW: 0.5, fS: 0.65,    // avoided kW per ton while discharging, winter / summer
+  rate: 'B-20',         // selected tariff: 'B-20' | 'B-20S'
+  volt: 'Secondary',    // selected service voltage
+  mode: 'demand',       // dispatch, derived from the tariff: B-20 → 'demand', B-20S → 'b20s'
+  sim: null, simCache: {}, sweepDone: false, sweepKey: '',
+};
+const winKey = () => ICE.chS + '|' + ICE.chE + '|' + ICE.diS + '|' + ICE.diE + '|' + ICE.fW + '|' + ICE.fS;
+const isDisHour = h => h >= ICE.diS && h < ICE.diE;
+const isChgHour = h => {
+  if (ICE.chS === ICE.chE) return false;
+  const inWin = ICE.chS < ICE.chE ? (h >= ICE.chS && h < ICE.chE) : (h >= ICE.chS || h < ICE.chE);
+  return inWin && !isDisHour(h);        // discharge window always wins on overlap
+};
+// charge hours serving day di: same-day window, or (when wrapped) the previous
+// evening plus this morning
+function chargeIdxForDay(di) {
+  const idx = [];
+  if (ICE.chS < ICE.chE || ICE.chS === ICE.chE) {
+    for (let i = DAYS[di].i0; i <= DAYS[di].i1; i++)
+      if (isChgHour(HOD[i])) idx.push(i);
+  } else {
+    if (di > 0)
+      for (let i = DAYS[di - 1].i0; i <= DAYS[di - 1].i1; i++)
+        if (HOD[i] >= ICE.chS && isChgHour(HOD[i])) idx.push(i);
+    for (let i = DAYS[di].i0; i <= DAYS[di].i1; i++)
+      if (HOD[i] < ICE.chE && isChgHour(HOD[i])) idx.push(i);
+  }
+  return idx;
+}
+const DAYS = [];
+{
+  let cur = null;
+  for (let i = 0; i < N; i++) {
+    const d = DATA.t[i].slice(0, 10);
+    if (!cur || cur.date !== d) { cur = { date: d, i0: i, i1: i, mon: +DATA.t[i].slice(5, 7) }; DAYS.push(cur); }
+    cur.i1 = i;
+  }
+}
+const HOD = DATA.t.map(s => +s.slice(11, 13));
+const MONI = DATA.t.map(s => +s.slice(5, 7));
+
+// One-year simulation for capacity C (ton·h). Discharge rate cap = C/4 tons.
+// Dispatch targets the monthly demand peak: for each month, binary-search the
+// lowest threshold T such that every day can shave all load above T within the
+// 06–24 window (daily energy ≤ C ton·h, rate ≤ C/4 tons) AND the night
+// charging (00–06, valley-filled, 0.9 kW/ton) stays below T. Days that never
+// exceed T don't cycle at all — only the binding days matter for demand.
+function simulateIce(C) {
+  const key = C + '|' + winKey();
+  if (ICE.simCache[key]) return ICE.simCache[key];
+  const R = C / 4;
+  const charge = new Float64Array(N);   // added electric kW (night)
+  const shave = new Float64Array(N);    // avoided electric kW (day)
+  const perDay = DAYS.map(d => ({ date: d.date, i0: d.i0, i1: d.i1, chargeTonH: 0, dischargeTonH: 0 }));
+  const monthT = {};
+
+  // valley-fill level for adding A kWh across hours with the given base loads
+  const fillLevel = (base, A) => {
+    const b = base.slice().sort((x, y) => x - y);
+    const n = b.length;
+    let P = 0;
+    for (let k = 0; k < n; k++) {
+      P += b[k];
+      const next = k + 1 < n ? b[k + 1] : Infinity;
+      const cand = (P + A) / (k + 1);
+      if (cand <= next) return cand;
+    }
+    return (P + A) / n;
+  };
+
+  for (const m of MONTHS) {
+    const f = SUMMER(+m.key.slice(5, 7)) ? ICE.fS : ICE.fW;
+    const mdays = [];
+    for (let di = 0; di < DAYS.length; di++)
+      if (DAYS[di].i0 >= m.i0 && DAYS[di].i1 <= m.i1) mdays.push(di);
+    let oldPk = 0;
+    for (let i = m.i0; i <= m.i1; i++) oldPk = Math.max(oldPk, DATA.cProp[i]);
+
+    // E_d needed at threshold T, or -1 if infeasible for that day
+    const dayNeed = (di, T) => {
+      const day = DAYS[di];
+      let E = 0, mx = 0;
+      for (let i = day.i0; i <= day.i1; i++) {
+        if (!isDisHour(HOD[i])) continue;
+        const s = DATA.cProp[i] - T;
+        if (s > 0) { E += s / f; mx = Math.max(mx, s); }
+      }
+      if (E - 1e-9 > C || mx - 1e-9 > f * R) return -1;
+      if (E > 1e-9) {
+        const chIdx = chargeIdxForDay(di);
+        if (!chIdx.length) return -1;
+        if (fillLevel(chIdx.map(i => DATA.cProp[i]), KW_PER_TON_CHG * E) - 1e-6 > T) return -1;
+      }
+      return E;
+    };
+    const feasible = T => mdays.every(di => dayNeed(di, T) >= 0);
+
+    let lo = 0, hi = oldPk;
+    if (C > 0) {
+      for (let k = 0; k < 45; k++) {
+        const mid = (lo + hi) / 2;
+        if (feasible(mid)) hi = mid; else lo = mid;
+      }
+    }
+    const T = hi;
+    monthT[m.key] = T;
+
+    // apply the dispatch at threshold T
+    if (C > 0 && T < oldPk - 1e-6) {
+      for (const di of mdays) {
+        const day = DAYS[di];
+        let E = 0;
+        for (let i = day.i0; i <= day.i1; i++) {
+          if (!isDisHour(HOD[i])) continue;
+          const s = DATA.cProp[i] - T;
+          if (s > 0) { shave[i] = s; E += s / f; }
+        }
+        const chIdx = chargeIdxForDay(di);
+        if (E > 1e-9 && chIdx.length) {
+          const lam = fillLevel(chIdx.map(i => DATA.cProp[i]), KW_PER_TON_CHG * E);
+          for (const i of chIdx) charge[i] = Math.max(0, lam - DATA.cProp[i]);
+        }
+        perDay[di].chargeTonH = E;
+        perDay[di].dischargeTonH = E;
+      }
+    }
+  }
+  const sim = { C, charge, shave, perDay, monthT };
+  ICE.simCache[key] = sim;
+  return sim;
+}
+
+// B-20S-optimized dispatch: phase 1 = the monthly demand-target thresholds Tm
+// (protects the Maximum-1/2 monthly charges), phase 2 = every day, flatten the
+// 16:00–21:00 peak window as far as energy (C), rate (C/4 tons) and the
+// night-charging ceiling (λ ≤ Tm) allow — this monetises B-20S's daily
+// $/kW-day peak charges and its high peak energy rates.
+function simulateB20S(C) {
+  const key = 'S|' + C + '|' + winKey();
+  if (ICE.simCache[key]) return ICE.simCache[key];
+  const base = simulateIce(C);
+  const R = C / 4;
+  const charge = new Float64Array(N);
+  const shave = new Float64Array(N);
+  const perDay = DAYS.map(d => ({ date: d.date, i0: d.i0, i1: d.i1, chargeTonH: 0, dischargeTonH: 0 }));
+  const fillLevel = (b0, A) => {
+    const b = b0.slice().sort((x, y) => x - y);
+    const n = b.length;
+    let P = 0;
+    for (let k = 0; k < n; k++) {
+      P += b[k];
+      const next = k + 1 < n ? b[k + 1] : Infinity;
+      const cand = (P + A) / (k + 1);
+      if (cand <= next) return cand;
+    }
+    return (P + A) / n;
+  };
+  for (const m of MONTHS) {
+    const f = SUMMER(+m.key.slice(5, 7)) ? ICE.fS : ICE.fW;
+    const Tm = base.monthT[m.key];
+    for (let di = 0; di < DAYS.length; di++) {
+      const day = DAYS[di];
+      if (day.i0 < m.i0 || day.i1 > m.i1) continue;
+      const dis = [], peak = [];
+      for (let i = day.i0; i <= day.i1; i++)
+        if (isDisHour(HOD[i])) { dis.push(i); if (HOD[i] >= 16 && HOD[i] < 21) peak.push(i); }
+      const chIdx = chargeIdxForDay(di);
+      if (!dis.length || !chIdx.length || C <= 0) continue;
+      const chBase = chIdx.map(i => DATA.cProp[i]);
+      const totals = T2 => {
+        let E = 0, mx = 0;
+        for (const i of dis) {
+          const tgt = (HOD[i] >= 16 && HOD[i] < 21) ? T2 : Tm;
+          const s = Math.max(0, DATA.cProp[i] - tgt);
+          E += s / f; mx = Math.max(mx, s);
+        }
+        return [E, mx];
+      };
+      const ok = T2 => {
+        const [E, mx] = totals(T2);
+        if (E - 1e-9 > C || mx - 1e-9 > f * R) return false;
+        if (E > 1e-9 && fillLevel(chBase, KW_PER_TON_CHG * E) - 1e-6 > Tm) return false;
+        return true;
+      };
+      let hiPk = 0;
+      for (const i of peak) hiPk = Math.max(hiPk, DATA.cProp[i]);
+      const lo = Math.max(0, hiPk - f * R);
+      let T2 = Tm;
+      if (ok(lo)) T2 = lo;
+      else {
+        let a = lo, b = Tm;
+        for (let k = 0; k < 40; k++) {
+          const mid = (a + b) / 2;
+          if (ok(mid)) b = mid; else a = mid;
+        }
+        T2 = b;
+      }
+      let E = 0;
+      for (const i of dis) {
+        const tgt = (HOD[i] >= 16 && HOD[i] < 21) ? T2 : Tm;
+        const s = Math.max(0, DATA.cProp[i] - tgt);
+        shave[i] = s; E += s / f;
+      }
+      if (E > 1e-9) {
+        const lam = fillLevel(chBase, KW_PER_TON_CHG * E);
+        for (const i of chIdx) charge[i] = Math.max(0, lam - DATA.cProp[i]);
+      }
+      perDay[di].chargeTonH = E;
+      perDay[di].dischargeTonH = E;
+    }
+  }
+  const sim = { C, charge, shave, perDay, monthT: base.monthT };
+  ICE.simCache[key] = sim;
+  return sim;
+}
+
+/* ---------- tariff engine (PG&E B-20 / B-20S, from the supplied rate tables) ---------- */
+const TARIFFS = {
+  'B-20|Secondary': { cust: 107.53159,
+    energy: { summer: { peak: .23091, part: .18561, off: .14983 },
+              winter: { peak: .20393, off: .14954, soff: .07669 } },
+    dem: { kind: 'monthly', summer: { peak: 46.94, part: 10.08, anymax: 40.38 },
+           winter: { peak: 3.03, anymax: 40.38 } } },
+  'B-20|Primary': { cust: 112.13910,
+    energy: { summer: { peak: .22604, part: .17731, off: .14333 },
+              winter: { peak: .19503, off: .14341, soff: .07019 } },
+    dem: { kind: 'monthly', summer: { peak: 50.53, part: 10.42, anymax: 35.92 },
+           winter: { peak: 3.06, anymax: 35.92 } } },
+  'B-20S|Secondary': { cust: 107.53159,
+    energy: { summer: { peak: .45104, part: .26821, off: .20918 },
+              winter: { peak: .21937, off: .17564, soff: .13989 } },
+    dem: { kind: 'daily', summer: { peakDay: 1.32, partDay: 0.07, max1: 5.61, max2: 12.32 },
+           winter: { peakDay: 1.04, max1: 5.61, max2: 12.32 } } },
+  'B-20S|Primary': { cust: 112.13910,
+    energy: { summer: { peak: .42506, part: .25390, off: .20133 },
+              winter: { peak: .20715, off: .16708, soff: .13133 } },
+    dem: { kind: 'daily', summer: { peakDay: 1.12, partDay: 0.07, max1: 4.67, max2: 12.32 },
+           winter: { peakDay: 0.85, max1: 4.67, max2: 12.32 } } },
+};
+function TOU(i) {
+  const h = HOD[i], m = MONI[i];
+  if (SUMMER(m)) {
+    if (h >= 16 && h < 21) return 'peak';
+    if ((h >= 14 && h < 16) || (h >= 21 && h < 23)) return 'part';
+    return 'off';
+  }
+  if (h >= 16 && h < 21) return 'peak';
+  if ((m === 3 || m === 4 || m === 5) && h >= 9 && h < 14) return 'soff';
+  return 'off';
+}
+// one billing month's cost components on a tariff
+function billMonthParts(kw, trf, m) {
+  const summer = SUMMER(+m.key.slice(5, 7));
+  const er = trf.energy[summer ? 'summer' : 'winter'];
+  const dr = trf.dem[summer ? 'summer' : 'winter'];
+  let ndays = 0, e = 0, dm = 0;
+  for (let i = m.i0; i <= m.i1; i++) e += kw[i] * er[TOU(i)];
+  if (trf.dem.kind === 'monthly') {
+    let pk = 0, pp = 0, anym = 0;
+    for (let i = m.i0; i <= m.i1; i++) {
+      const p = TOU(i);
+      if (p === 'peak') pk = Math.max(pk, kw[i]);
+      if (p === 'part') pp = Math.max(pp, kw[i]);
+      anym = Math.max(anym, kw[i]);
+    }
+    dm = pk * dr.peak + anym * dr.anymax + (summer ? pp * dr.part : 0);
+    for (const day of DAYS) if (day.i0 >= m.i0 && day.i1 <= m.i1) ndays++;
+  } else {
+    let m1 = 0, m2 = 0;
+    for (let i = m.i0; i <= m.i1; i++) {
+      if (!(HOD[i] >= 9 && HOD[i] < 14)) m1 = Math.max(m1, kw[i]);
+      m2 = Math.max(m2, kw[i]);
+    }
+    dm = m1 * dr.max1 + m2 * dr.max2;
+    for (const day of DAYS) {
+      if (day.i0 < m.i0 || day.i1 > m.i1) continue;
+      ndays++;
+      let pk = 0, pp = 0;
+      for (let i = day.i0; i <= day.i1; i++) {
+        const p = TOU(i);
+        if (p === 'peak') pk = Math.max(pk, kw[i]);
+        if (p === 'part') pp = Math.max(pp, kw[i]);
+      }
+      dm += pk * dr.peakDay + (summer ? pp * dr.partDay : 0);
+    }
+  }
+  return { cust: trf.cust * ndays, energy: e, demand: dm, total: trf.cust * ndays + e + dm };
+}
+function billAnnual(kw, trf) {
+  let tot = 0;
+  for (const m of MONTHS) tot += billMonthParts(kw, trf, m).total;
+  return tot;
+}
+
+// monthly results; withBills adds exact-tariff $ columns for the SELECTED tariff
+function iceMonthly(sim, withBills) {
+  const trf = TARIFFS[ICE.rate + '|' + ICE.volt];
+  const after = withBills ? DATA.cProp.map((v, i) => v + sim.charge[i] - sim.shave[i]) : null;
+  return MONTHS.map(m => {
+    const summer = SUMMER(+m.key.slice(5, 7));
+    let oldPk = -Infinity, newPk = -Infinity, oi = m.i0, ni = m.i0, chg = 0, dis = 0;
+    for (let i = m.i0; i <= m.i1; i++) {
+      const L = DATA.cProp[i], net = L + sim.charge[i] - sim.shave[i];
+      if (L > oldPk) { oldPk = L; oi = i; }
+      if (net > newPk) { newPk = net; ni = i; }
+      chg += sim.charge[i]; dis += sim.shave[i];
+    }
+    const gain = oldPk - newPk;
+    const r = { m, summer, oldPk, newPk, oi, ni, gain,
+                chg, dis, balKWh: dis - chg, gainD: 0, balCost: 0 };
+    if (withBills) {
+      const pb = billMonthParts(DATA.cProp, trf, m);
+      const pa = billMonthParts(after, trf, m);
+      r.gainD = pb.demand - pa.demand;    // exact demand-charge saving this month
+      r.balCost = pb.energy - pa.energy;  // exact energy-cost saving (negative = penalty)
+    }
+    return r;
+  });
+}
+
+function runSweep() {
+  if (ICE.sweepDone && ICE.sweepKey === winKey()) return;
+  let best = { C: 0, g: 0 };
+  const results = [];
+  for (let C = 100; C <= 4000; C += 100) {
+    const rows = iceMonthly(simulateIce(C));
+    let g = 0; for (const r of rows) g += r.gain;
+    results.push({ C, g });
+    if (g > best.g) best = { C, g };
+  }
+  // smallest size within 99% of the max total annual kW reduction
+  let rec = best.C;
+  for (const r of results) if (r.g >= 0.99 * best.g) { rec = r.C; break; }
+  ICE.rec = rec; ICE.maxAnnualGain = best.g; ICE.sweepDone = true; ICE.sweepKey = winKey();
+  if (ICE.auto) ICE.size = rec;
+}
+
+// smallest contiguous hour window covering >=90% of discharge energy for a season
+function iceWindow(sim, summer) {
+  const byH = new Array(24).fill(0);
+  for (let i = 0; i < N; i++)
+    if (sim.shave[i] > 0 && SUMMER(+DATA.t[i].slice(5, 7)) === summer) byH[HOD[i]] += sim.shave[i];
+  const tot = byH.reduce((a, b) => a + b, 0);
+  if (!tot) return null;
+  let bestW = null;
+  for (let a = 0; a < 24; a++) {
+    let s = 0;
+    for (let b = a; b < 24; b++) {
+      s += byH[b];
+      if (s >= 0.9 * tot) { if (!bestW || (b - a) < (bestW.b - bestW.a)) bestW = { a, b }; break; }
+    }
+  }
+  return bestW;
+}
+const fmtH = h => String(h).padStart(2, '0') + ':00';
+const fmtMoney = v => (v < 0 ? '−$' : '$') + Math.abs(v).toLocaleString('en-US', { maximumFractionDigits: 0 });
+const fmtInt = v => (v < 0 ? '−' : '') + Math.abs(Math.round(v)).toLocaleString('en-US');
+
 /* ---------- theme ---------- */
 const root = document.documentElement;
 function setTheme(t) {
@@ -278,7 +764,7 @@ let activeView = 'bStack';
 const viewsEl = document.getElementById('views');
 function buildSwitcher() {
   viewsEl.textContent = '';
-  for (const scen of ['Baseline', 'Proposed', 'Compare']) {
+  for (const scen of ['Baseline', 'Proposed', 'Compare', 'Ice storage']) {
     const grp = document.createElement('div');
     grp.className = 'grp';
     const tag = document.createElement('button');
@@ -291,12 +777,12 @@ function buildSwitcher() {
       b.type = 'button';
       b.dataset.view = v.id;
       b.setAttribute('aria-pressed', String(v.id === activeView));
-      if (v.stacked || v.compare) {
+      if (v.stacked || v.compare || v.ice) {
         const kp = document.createElement('span'); kp.className = 'key-pair';
         const s1 = document.createElement('span');
         const s2 = document.createElement('span');
-        s1.style.background = v.compare ? 'var(--series-base)' : 'var(--series-arena)';
-        s2.style.background = v.compare ? 'var(--series-prop)' : 'var(--series-cc)';
+        s1.style.background = v.ice ? 'var(--ice-chg)' : v.compare ? 'var(--series-base)' : 'var(--series-arena)';
+        s2.style.background = v.ice ? 'var(--ice-dis)' : v.compare ? 'var(--series-prop)' : 'var(--series-cc)';
         kp.append(s1, s2); b.appendChild(kp);
       } else {
         const d = document.createElement('span'); d.className = 'key-dot';
@@ -529,13 +1015,416 @@ function syncMonthButtons() {
     b.setAttribute('aria-pressed', String(b.dataset.month === activeMonth));
 }
 
-/* ---------- peaks table & stat ---------- */
-function renderTable(view) {
+/* ---------- ice chart & renderers ---------- */
+function buildIceChart() {
+  const ink = cssVar('--text-primary'), sec = cssVar('--text-secondary'),
+        muted = cssVar('--muted'), grid = cssVar('--grid'), axis = cssVar('--axisline'),
+        surface = cssVar('--surface-1'), border = cssVar('--border'),
+        chgC = cssVar('--ice-chg'), disC = cssVar('--ice-dis'), violet = cssVar('--series-prop');
+  const sim = ICE.sim;
+  const before = [], after = [], chg = [], dis = [];
+  for (let i = 0; i < N; i++) {
+    const L = DATA.cProp[i];
+    before.push([TMS[i], L]);
+    after.push([TMS[i], Math.round((L + sim.charge[i] - sim.shave[i]) * 10) / 10]);
+    chg.push([TMS[i], Math.round(sim.charge[i] * 10) / 10]);
+    dis.push([TMS[i], Math.round(sim.shave[i] * 10) / 10]);
+  }
+  const monthly = iceMonthly(sim);
+  // daily ton·h labels at each day's noon
+  const dayLabelData = [], dayLabelText = [];
+  for (const d of sim.perDay) {
+    if (d.chargeTonH < 0.5 && d.dischargeTonH < 0.5) continue;
+    let noon = d.i0, top = 0;
+    for (let i = d.i0; i <= d.i1; i++) {
+      if (HOD[i] === 12) noon = i;
+      top = Math.max(top, DATA.cProp[i] + sim.charge[i]);
+    }
+    dayLabelData.push([TMS[noon], top]);
+    dayLabelText.push('chg ' + fmtInt(d.chargeTonH) + ' t·h\ndis ' + fmtInt(d.dischargeTonH) + ' t·h');
+  }
+
+  if (chart) chart.dispose();
+  chart = echarts.init(chartEl, null, { renderer: 'canvas' });
+  const NAMES = { before: 'Load — before ice', after: 'Load — after ice', chg: 'Charging (added kW)', dis: 'Discharging (avoided kW)' };
+  chart.setOption({
+    backgroundColor: 'transparent',
+    animation: false,
+    textStyle: { fontFamily: 'system-ui, -apple-system, "Segoe UI", sans-serif' },
+    legend: {
+      top: 0, right: 96, itemWidth: 14, itemHeight: 10,
+      textStyle: { color: sec, fontSize: 12.5 },
+      data: [
+        { name: NAMES.before, icon: 'roundRect', itemStyle: { color: violet } },
+        { name: NAMES.after, icon: 'roundRect', itemStyle: { color: ink } },
+        { name: NAMES.chg, icon: 'rect', itemStyle: { color: chgC } },
+        { name: NAMES.dis, icon: 'rect', itemStyle: { color: disC } },
+      ],
+    },
+    grid: { left: 58, right: 18, top: 32, bottom: 74 },
+    toolbox: {
+      right: 6, top: 0, itemSize: 15, itemGap: 6,
+      iconStyle: { borderColor: muted },
+      emphasis: { iconStyle: { borderColor: ink } },
+      feature: {
+        dataZoom: { yAxisIndex: 'none', title: { zoom: 'Drag-zoom', back: 'Undo zoom' } },
+        restore: { title: 'Reset' },
+      },
+    },
+    xAxis: {
+      type: 'time',
+      axisLine: { lineStyle: { color: axis } },
+      axisTick: { show: false },
+      axisLabel: { color: muted, hideOverlap: true,
+        formatter: { year: '{yyyy}', month: '{MMM} ’{yy}', day: '{MMM} {d}', hour: '{HH}:00' } },
+      splitLine: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      name: 'kW',
+      nameTextStyle: { color: muted, align: 'right' },
+      axisLabel: { color: muted, formatter: v => v.toLocaleString('en-US') },
+      splitLine: { lineStyle: { color: grid, width: 1 } },
+    },
+    dataZoom: [
+      { type: 'inside', zoomOnMouseWheel: true, moveOnMouseMove: false, moveOnMouseWheel: false,
+        ...(savedZoom || {}) },
+      { type: 'slider', height: 34, bottom: 10, borderColor: border,
+        backgroundColor: 'transparent',
+        dataBackground: { lineStyle: { color: axis }, areaStyle: { color: grid, opacity: 0.5 } },
+        selectedDataBackground: { lineStyle: { color: chgC }, areaStyle: { color: chgC, opacity: 0.12 } },
+        moveHandleStyle: { color: axis }, handleStyle: { color: surface, borderColor: muted },
+        textStyle: { color: muted, fontSize: 11 },
+        ...(savedZoom || {}) },
+    ],
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'line', lineStyle: { color: muted, width: 1 } },
+      backgroundColor: surface, borderColor: border, borderWidth: 1,
+      padding: [8, 12],
+      textStyle: { color: ink, fontSize: 12.5 },
+      formatter: params => {
+        const keep = {};
+        for (const p of params) keep[p.seriesName] = p;
+        const bf = keep[NAMES.before], af = keep[NAMES.after], ch = keep[NAMES.chg], di = keep[NAMES.dis];
+        if (!bf) return '';
+        const d = new Date(bf.value[0]);
+        const box = document.createElement('div');
+        const h = document.createElement('div');
+        h.style.cssText = 'color:' + sec + ';margin-bottom:4px;font-size:12px';
+        h.textContent = MONTH_NAMES[d.getUTCMonth()] + ' ' + d.getUTCDate() + ', ' + d.getUTCFullYear() +
+          ' · ' + String(d.getUTCHours()).padStart(2, '0') + ':00';
+        box.appendChild(h);
+        const row = (color, valTxt, name) => {
+          const r = document.createElement('div');
+          r.style.cssText = 'display:flex;align-items:center;gap:7px;margin:2px 0';
+          const key = document.createElement('span');
+          key.style.cssText = 'width:12px;height:0;border-top:3px solid ' + color + ';border-radius:2px';
+          const val = document.createElement('span');
+          val.style.cssText = 'font-weight:650;font-variant-numeric:tabular-nums';
+          val.textContent = valTxt;
+          const nm = document.createElement('span');
+          nm.style.cssText = 'color:' + sec; nm.textContent = name;
+          r.append(key, val, nm);
+          box.appendChild(r);
+        };
+        row(violet, fmtKW(bf.value[1]) + ' kW', 'Before ice');
+        if (af) row(ink, fmtKW(af.value[1]) + ' kW', 'After ice');
+        if (ch && ch.value[1] > 0) row(chgC, '+' + fmtKW(ch.value[1]) + ' kW', 'Charging');
+        if (di && di.value[1] > 0) row(disC, '−' + fmtKW(di.value[1]) + ' kW', 'Discharging');
+        return box;
+      },
+    },
+    series: [
+      { name: '_chgBase', type: 'line', stack: 'chg', data: before, showSymbol: false,
+        lineStyle: { opacity: 0 }, silent: true, tooltip: { show: false }, z: 2 },
+      { name: NAMES.chg, type: 'line', stack: 'chg', data: chg, showSymbol: false,
+        lineStyle: { opacity: 0 }, itemStyle: { color: chgC },
+        areaStyle: { color: chgC, opacity: 0.92 }, silent: true, z: 2 },
+      { name: '_disBase', type: 'line', stack: 'dis', data: after, showSymbol: false,
+        lineStyle: { opacity: 0 }, silent: true, tooltip: { show: false }, z: 2 },
+      { name: NAMES.dis, type: 'line', stack: 'dis', data: dis, showSymbol: false,
+        lineStyle: { opacity: 0 }, itemStyle: { color: disC },
+        areaStyle: { color: disC, opacity: 0.92 }, silent: true, z: 2 },
+      { name: NAMES.before, type: 'line', data: before, showSymbol: false,
+        color: violet, lineStyle: { width: 2 }, emphasis: { disabled: true }, z: 5 },
+      { name: NAMES.after, type: 'line', data: after, showSymbol: false,
+        color: ink, lineStyle: { width: 2 }, emphasis: { disabled: true }, z: 6 },
+      { name: 'Monthly peak', type: 'scatter', symbolSize: 9, silent: true, z: 10,
+        itemStyle: { color: ink, borderColor: surface, borderWidth: 2 },
+        data: monthly.map(r => [TMS[r.ni], r.newPk]) },
+      { id: 'dayLabels', name: '_dayLabels', type: 'scatter', symbolSize: 0, silent: true, z: 9,
+        data: dayLabelData,
+        label: { show: false, position: 'top', color: sec, fontSize: 11, lineHeight: 14,
+          formatter: p => dayLabelText[p.dataIndex] },
+        labelLayout: { hideOverlap: true } },
+    ],
+  });
+
+  const syncDayLabels = () => {
+    const dz = chart.getOption().dataZoom[0];
+    const spanDays = ((dz.end - dz.start) / 100) * (TMS[N - 1] - TMS[0]) / 86400000;
+    chart.setOption({ series: [{ id: 'dayLabels', label: { show: spanDays <= 35 } }] });
+  };
+  chart.on('datazoom', () => {
+    const dz = chart.getOption().dataZoom[0];
+    savedZoom = { start: dz.start, end: dz.end };
+    if (!programmaticZoom) { activeMonth = null; syncMonthButtons(); }
+    syncDayLabels();
+    armDragZoom();
+  });
+  chart.on('restore', () => { savedZoom = null; activeMonth = null; syncMonthButtons(); buildIceChart(); });
+  chart.getZr().on('dblclick', () => { savedZoom = null; activeMonth = null; syncMonthButtons(); buildIceChart(); });
+  syncDayLabels();
+  armDragZoom();
+}
+
+function clearTable() {
   const tbl = document.getElementById('peaksTable');
-  const stacked = !!view.stacked;
   while (tbl.tBodies.length) tbl.removeChild(tbl.tBodies[0]);
   while (tbl.tHead) tbl.removeChild(tbl.tHead);
+  while (tbl.tFoot) tbl.removeChild(tbl.tFoot);
   const old = document.getElementById('tblSub'); if (old) old.remove();
+  return tbl;
+}
+
+function balCell(tr, v, fmt) {
+  const c = tr.insertCell();
+  const s = document.createElement('span');
+  s.className = v < 0 ? 'neg' : 'pos';
+  s.textContent = fmt(v);
+  c.appendChild(s);
+}
+
+function renderIceTable() {
+  const tbl = clearTable();
+  document.getElementById('tblTitle').textContent = 'Ice storage — monthly results (Proposed combined)';
+  const thead = tbl.createTHead();
+  const hr = thead.insertRow();
+  for (const c of ['Month', 'Peak before kW', 'Peak after kW', 'kW gain', 'Demand $ gain',
+                   'Charge kWh', 'Avoided kWh', 'Balance kWh', 'Balance $'])
+    { const th = document.createElement('th'); th.textContent = c; hr.appendChild(th); }
+  const rows = iceMonthly(ICE.sim, true);
+  const tbody = tbl.createTBody();
+  const tot = { gain: 0, gainD: 0, chg: 0, dis: 0, balKWh: 0, balCost: 0 };
+  for (const r of rows) {
+    const tr = tbody.insertRow();
+    tr.title = 'Zoom chart to ' + monthLabel(r.m.key);
+    tr.addEventListener('click', () => zoomToMonth(r.m));
+    tr.insertCell().textContent = monthLabel(r.m.key) + (r.summer ? ' ☀' : '');
+    tr.insertCell().textContent = fmtKW(r.oldPk);
+    tr.insertCell().textContent = fmtKW(r.newPk);
+    const cg = tr.insertCell();
+    const b = document.createElement('span'); b.className = 'pk'; b.textContent = fmtKW(r.gain);
+    cg.appendChild(b);
+    tr.insertCell().textContent = fmtMoney(r.gainD);
+    tr.insertCell().textContent = fmtInt(r.chg);
+    tr.insertCell().textContent = fmtInt(r.dis);
+    balCell(tr, r.balKWh, fmtInt);
+    balCell(tr, r.balCost, fmtMoney);
+    tot.gain += r.gain; tot.gainD += r.gainD; tot.chg += r.chg; tot.dis += r.dis;
+    tot.balKWh += r.balKWh; tot.balCost += r.balCost;
+  }
+  const tfoot = tbl.createTFoot();
+  const fr = tfoot.insertRow();
+  fr.style.fontWeight = '650';
+  fr.insertCell().textContent = 'Annual';
+  fr.insertCell().textContent = '';
+  fr.insertCell().textContent = '';
+  fr.insertCell().textContent = fmtKW(tot.gain);
+  fr.insertCell().textContent = fmtMoney(tot.gainD);
+  fr.insertCell().textContent = fmtInt(tot.chg);
+  fr.insertCell().textContent = fmtInt(tot.dis);
+  balCell(fr, tot.balKWh, fmtInt);
+  balCell(fr, tot.balCost, fmtMoney);
+  for (const c of fr.cells) { c.style.textAlign = c.cellIndex === 0 ? 'left' : 'right'; c.style.padding = '7px 12px'; c.style.borderTop = '1px solid var(--axisline)'; c.style.fontVariantNumeric = 'tabular-nums'; }
+  const sub = document.createElement('p');
+  sub.className = 'tbl-sub'; sub.id = 'tblSub';
+  sub.textContent = 'kW gain = monthly peak before ice minus peak after ice — set by the single day whose discharged (net) peak is highest. “Demand $ gain” and “Balance $” are the exact ' + ICE.rate + ' ' + ICE.volt + ' bill components (demand charges and TOU energy cost, before − after) for the month. Balance kWh = discharging (avoided) − charging kWh; charged energy is a cost, avoided energy a gain — under B-20S the $ balance can be positive despite negative kWh, because discharge displaces peak-rate energy while charging buys off-peak. ☀ = summer months (Jun–Sep, ' + ICE.fS + ' kW/ton avoided; winter ' + ICE.fW + '). Click a row to zoom the chart to that month.';
+  tbl.insertAdjacentElement('afterend', sub);
+  return tot;
+}
+
+function renderIceSummary(tot) {
+  const el = document.getElementById('iceSummary');
+  el.textContent = '';
+  const tile = (lbl, val, sub2, cls) => {
+    const t = document.createElement('div'); t.className = 'tile';
+    const l = document.createElement('div'); l.className = 'lbl'; l.textContent = lbl;
+    const v = document.createElement('div'); v.className = 'val';
+    if (cls) { const s = document.createElement('span'); s.className = cls; s.textContent = val; v.appendChild(s); }
+    else v.textContent = val;
+    t.append(l, v);
+    if (sub2) { const s2 = document.createElement('div'); s2.className = 'sub2'; s2.textContent = sub2; t.appendChild(s2); }
+    el.appendChild(t);
+  };
+  tile('System size', fmtInt(ICE.size) + ' ton·h', ICE.auto ? 'auto-sized for max kW reduction' : 'manual (recommended: ' + fmtInt(ICE.rec) + ')');
+  tile('Annual kW reduction', fmtKW(tot.gain) + ' kW·mo', 'sum of the 12 monthly peak gains');
+  tile('Demand-charge savings', fmtMoney(tot.gainD) + '/yr', 'exact ' + ICE.rate + ' ' + ICE.volt + ' demand components, before − after');
+  tile('Energy balance', fmtInt(tot.balKWh) + ' kWh', fmtMoney(tot.balCost) + '/yr on ' + ICE.rate + ' TOU energy rates (avoided − charged)', tot.balCost < 0 ? 'neg' : 'pos');
+  const { rate, b, a, save } = currentBill();
+  tile('Annual bill savings — ' + rate, fmtMoney(save),
+    'exact ' + rate + ' ' + ICE.volt + ' tariff: ' + fmtMoney(b) + ' → ' + fmtMoney(a),
+    save < 0 ? 'neg' : 'pos');
+}
+
+function renderIcePlan() {
+  const w = iceWindow(ICE.sim, false), s = iceWindow(ICE.sim, true);
+  const el = document.getElementById('icePlan');
+  el.textContent = '';
+  const frag = [];
+  frag.push(['Recommended size: ', fmtInt(ICE.rec) + ' ton·h', ' (smallest system within 1% of the maximum annual kW reduction for the chosen windows; sweep 100–4,000 ton·h, discharge rate = size/4 tons).']);
+  frag.push([' Charging window: ', fmtH(ICE.chS) + '–' + fmtH(ICE.chE) + (ICE.chS >= ICE.chE ? ' (overnight)' : ''), ', valley-filled ahead of that day’s discharge; days that never threaten the monthly peak don’t cycle.']);
+  if (w) frag.push([' Best curtailment window, winter (Oct–May): ', fmtH(w.a) + '–' + fmtH(w.b + 1), '']);
+  if (s) frag.push([w ? ' · summer (Jun–Sep): ' : ' Best curtailment window, summer: ', fmtH(s.a) + '–' + fmtH(s.b + 1), ' (windows cover ≥90% of discharge energy within the allowed ' + fmtH(ICE.diS) + '–' + fmtH(ICE.diE) + ' discharge span).']);
+  for (const [a, strong, b] of frag) {
+    el.append(a);
+    const bb = document.createElement('b'); bb.textContent = strong; el.appendChild(bb);
+    el.append(b);
+  }
+}
+
+// exact annual bill (before / after) on the tariff matching the active dispatch
+function currentBill() {
+  const rate = ICE.rate;
+  const trf = TARIFFS[rate + '|' + ICE.volt];
+  const after = DATA.cProp.map((v, i) => v + ICE.sim.charge[i] - ICE.sim.shave[i]);
+  const b = billAnnual(DATA.cProp, trf);
+  const a = billAnnual(after, trf);
+  return { rate, b, a, save: b - a };
+}
+
+function renderIceStat() {
+  const { rate, b, a, save } = currentBill();
+  const el = document.getElementById('statPeak');
+  el.textContent = '';
+  el.parentElement.querySelector('.lbl').textContent = 'Annual bill savings — ' + rate + ' · ' + ICE.volt;
+  const s = document.createElement('span');
+  s.className = save < 0 ? 'neg' : 'pos';
+  s.textContent = fmtMoney(save);
+  el.appendChild(s);
+  document.getElementById('statWhen').textContent =
+    fmtMoney(b) + ' → ' + fmtMoney(a) + ' (exact ' + rate + ' bill)';
+}
+
+function renderTariffCard() {
+  const tbl = document.getElementById('tariffTable');
+  while (tbl.tBodies.length) tbl.removeChild(tbl.tBodies[0]);
+  while (tbl.tHead) tbl.removeChild(tbl.tHead);
+  const before = DATA.cProp;
+  const simD = simulateIce(ICE.size);
+  const simS = simulateB20S(ICE.size);
+  const afterD = before.map((v, i) => v + simD.charge[i] - simD.shave[i]);
+  const afterS = before.map((v, i) => v + simS.charge[i] - simS.shave[i]);
+  const thead = tbl.createTHead();
+  const hr = thead.insertRow();
+  for (const c of ['Service · rate', 'Before IceBrick', 'After IceBrick', 'IceBrick saves', 'Full move vs today (B-20, no ice)'])
+    { const th = document.createElement('th'); th.textContent = c; hr.appendChild(th); }
+  const tbody = tbl.createTBody();
+  for (const volt of ['Secondary', 'Primary']) {
+    const b20Before = billAnnual(before, TARIFFS['B-20|' + volt]);
+    for (const rate of ['B-20', 'B-20S']) {
+      const trf = TARIFFS[rate + '|' + volt];
+      const b = billAnnual(before, trf);
+      const a = billAnnual(rate === 'B-20S' ? afterS : afterD, trf);
+      const tr = tbody.insertRow();
+      if (volt === ICE.volt && rate === ICE.rate)
+        tr.style.background = 'var(--sel-wash)';
+      const c0 = tr.insertCell();
+      c0.textContent = volt + ' · ' + rate + (rate === 'B-20S' ? ' (optimized dispatch)' : '');
+      tr.insertCell().textContent = fmtMoney(b);
+      tr.insertCell().textContent = fmtMoney(a);
+      const cs = tr.insertCell();
+      const bs = document.createElement('span'); bs.className = 'pk'; bs.textContent = fmtMoney(b - a);
+      cs.appendChild(bs);
+      const cf = tr.insertCell();
+      const fm = b20Before - a;
+      const fs = document.createElement('span');
+      fs.className = fm > 0 ? 'pos' : 'neg';
+      fs.textContent = fmtMoney(fm);
+      cf.appendChild(fs);
+    }
+  }
+  document.getElementById('tariffSub').textContent =
+    'Bills computed hour-by-hour on the Proposed combined stream at the current system size (' + fmtInt(ICE.size) +
+    ' ton·h) and charge/discharge windows. B-20 “after” uses the monthly demand-target dispatch; B-20S “after” uses the B-20S-optimized dispatch ' +
+    '(demand-target thresholds plus flattening the 16:00–21:00 window every day — B-20S bills daily $/kW-day peak charges and high peak energy). ' +
+    'TOU: summer (Jun–Sep) peak 16–21, part-peak 14–16 & 21–23; winter peak 16–21, super off-peak 9–14 Mar–May. Includes customer, energy and demand charges; ' +
+    'excludes PDP events and the negligible power-factor adjustment. Rates are fixed from your B-20/B-20S tables — the $ inputs above do not affect this card. ' +
+    'Hourly maxima proxy 15-minute billing demand.';
+}
+
+function syncIceInputs() {
+  document.getElementById('inpTariff').value = ICE.rate + '|' + ICE.volt;
+  document.getElementById('inpSize').value = ICE.size;
+  document.getElementById('inpChS').value = ICE.chS;
+  document.getElementById('inpChE').value = ICE.chE;
+  document.getElementById('inpDiS').value = ICE.diS;
+  document.getElementById('inpDiE').value = ICE.diE;
+  document.getElementById('inpAvoided').value = ICE.fW + '|' + ICE.fS;
+}
+
+// the "rate organs" panel — every component of the selected tariff
+function renderRateInfo() {
+  const el = document.getElementById('rateInfo');
+  el.textContent = '';
+  const trf = TARIFFS[ICE.rate + '|' + ICE.volt];
+  const b20 = trf.dem.kind === 'monthly';
+  const money = (v, dec) => '$' + v.toFixed(dec === undefined ? 5 : dec);
+  const mk = (title, rows) => {
+    const box = document.createElement('div');
+    box.className = 'rate-box';
+    const h = document.createElement('div'); h.className = 'rate-h'; h.textContent = title;
+    box.appendChild(h);
+    for (const [k, v] of rows) {
+      const r = document.createElement('div'); r.className = 'rate-r';
+      const a = document.createElement('span'); a.textContent = k;
+      const b = document.createElement('span'); b.textContent = v;
+      r.append(a, b); box.appendChild(r);
+    }
+    el.appendChild(box);
+    return box;
+  };
+  mk('Customer charge', [['$/meter/day', money(trf.cust)]]);
+  if (b20) {
+    mk('Demand — Summer (Jun–Sep)', [
+      ['Max Peak (16–21) $/kW', money(trf.dem.summer.peak, 2)],
+      ['Max Part-Peak $/kW', money(trf.dem.summer.part, 2)],
+      ['Maximum (any hour) $/kW', money(trf.dem.summer.anymax, 2)]]);
+    mk('Demand — Winter (Oct–May)', [
+      ['Max Peak (16–21) $/kW', money(trf.dem.winter.peak, 2)],
+      ['Maximum (any hour) $/kW', money(trf.dem.winter.anymax, 2)]]);
+  } else {
+    mk('Demand — Summer (Jun–Sep)', [
+      ['Max Peak (16–21) $/kW·day', money(trf.dem.summer.peakDay, 2)],
+      ['Max Part-Peak $/kW·day', money(trf.dem.summer.partDay, 2)],
+      ['Maximum 1 (excl 9–14) $/kW', money(trf.dem.summer.max1, 2)],
+      ['Maximum 2 (any hour) $/kW', money(trf.dem.summer.max2, 2)]]);
+    mk('Demand — Winter (Oct–May)', [
+      ['Max Peak (16–21) $/kW·day', money(trf.dem.winter.peakDay, 2)],
+      ['Maximum 1 (excl 9–14) $/kW', money(trf.dem.winter.max1, 2)],
+      ['Maximum 2 (any hour) $/kW', money(trf.dem.winter.max2, 2)]]);
+  }
+  mk('Energy — Summer $/kWh', [
+    ['Peak (16–21)', money(trf.energy.summer.peak)],
+    ['Part-Peak (14–16, 21–23)', money(trf.energy.summer.part)],
+    ['Off-Peak', money(trf.energy.summer.off)]]);
+  mk('Energy — Winter $/kWh', [
+    ['Peak (16–21)', money(trf.energy.winter.peak)],
+    ['Off-Peak', money(trf.energy.winter.off)],
+    ['Super Off-Peak (9–14 Mar–May)', money(trf.energy.winter.soff)]]);
+  const note = document.createElement('div');
+  note.className = 'rate-note';
+  note.textContent = 'Dispatch follows the tariff: ' + (b20
+    ? 'B-20 → monthly demand-target dispatch (cycles only on days that threaten the monthly maximums).'
+    : 'B-20S → optimized daily dispatch (flattens the 16:00–21:00 window every day for the $/kW·day charges and peak-rate energy, on top of the monthly targets).');
+  el.appendChild(note);
+}
+
+/* ---------- peaks table & stat ---------- */
+function renderTable(view) {
+  const tbl = clearTable();
+  const stacked = !!view.stacked;
 
   const cap = document.getElementById('tblTitle');
   cap.textContent = view.compare
@@ -651,6 +1540,29 @@ function renderStat(view) {
 function renderAll() {
   const view = currentView();
   buildSwitcher();
+  const iceMode = !!view.ice;
+  document.getElementById('iceControls').hidden = !iceMode;
+  document.getElementById('iceSummary').hidden = !iceMode;
+  document.getElementById('tariffCard').hidden = !iceMode;
+  if (iceMode) {
+    runSweep();
+    if (ICE.auto) ICE.size = ICE.rec;
+    syncIceInputs();
+    renderRateInfo();
+    ICE.sim = ICE.mode === 'b20s' ? simulateB20S(ICE.size) : simulateIce(ICE.size);
+    document.getElementById('chartTitle').textContent = 'Ice storage fit — Proposed combined (Arena + CC)';
+    document.getElementById('chartSub').textContent =
+      'Charging (dark blue, +0.9 kW/ton, ' + fmtH(ICE.chS) + '–' + fmtH(ICE.chE) +
+      (ICE.chS >= ICE.chE ? ' overnight' : '') + ') · discharging (light blue, avoids ' + ICE.fW + ' kW/ton Oct–May / ' + ICE.fS + ' kW/ton Jun–Sep, ' +
+      fmtH(ICE.diS) + '–' + fmtH(ICE.diE) + ') · zoom in to see daily ton·h';
+    buildIceChart();
+    const tot = renderIceTable();
+    renderIceSummary(tot);
+    renderIceStat();
+    renderIcePlan();
+    renderTariffCard();
+    return;
+  }
   document.getElementById('chartTitle').textContent = view.compare
     ? 'Baseline vs. Proposed — combined demand (Arena + CC)'
     : view.scen + ' — ' + (view.stacked ? 'Arena + Convention Center, stacked' : METERS[view.meters[0]].name);
@@ -662,6 +1574,55 @@ function renderAll() {
   buildChart(view);
   renderStat(view);
   renderTable(view);
+}
+
+/* ---------- ice inputs ---------- */
+function readIceInputs() {
+  const num = (id, fallback) => {
+    const v = parseFloat(document.getElementById(id).value);
+    return isFinite(v) && v >= 0 ? v : fallback;
+  };
+  const size = num('inpSize', ICE.size);
+  if (size !== ICE.size) { ICE.size = size; ICE.auto = false; }
+  const hour = (id, fallback, max) => {
+    const v = Math.round(num(id, fallback));
+    return Math.min(Math.max(v, 0), max);
+  };
+  ICE.chS = hour('inpChS', ICE.chS, 23);
+  ICE.chE = hour('inpChE', ICE.chE, 24);
+  ICE.diS = hour('inpDiS', ICE.diS, 23);
+  ICE.diE = hour('inpDiE', ICE.diE, 24);
+  if (ICE.diE <= ICE.diS) ICE.diE = Math.min(ICE.diS + 1, 24);  // discharge window can't wrap
+  const [fW, fS] = document.getElementById('inpAvoided').value.split('|').map(parseFloat);
+  ICE.fW = fW || 0.5;
+  ICE.fS = fS || 0.65;
+  const [rate, volt] = document.getElementById('inpTariff').value.split('|');
+  ICE.rate = rate === 'B-20S' ? 'B-20S' : 'B-20';
+  ICE.volt = volt === 'Primary' ? 'Primary' : 'Secondary';
+  ICE.mode = ICE.rate === 'B-20S' ? 'b20s' : 'demand';
+  renderAll();
+}
+for (const id of ['inpTariff', 'inpSize', 'inpChS', 'inpChE', 'inpDiS', 'inpDiE', 'inpAvoided'])
+  document.getElementById(id).addEventListener('change', readIceInputs);
+document.getElementById('autoSizeBtn').addEventListener('click', () => {
+  ICE.auto = true;
+  renderAll();
+});
+
+/* ---------- start overlay ---------- */
+{
+  const ov = document.getElementById('startOverlay');
+  const pick = id => { activeView = id; ov.hidden = true; renderAll(); };
+  document.getElementById('startIce').addEventListener('click', () => pick('ice'));
+  const grid = document.getElementById('startGrid');
+  for (const v of VIEWS.filter(v => !v.ice)) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = (v.scen === 'Compare' ? '' : v.scen + ' · ') + v.label;
+    b.addEventListener('click', () => pick(v.id));
+    grid.appendChild(b);
+  }
+  ov.hidden = false;
 }
 
 buildMonthButtons();
