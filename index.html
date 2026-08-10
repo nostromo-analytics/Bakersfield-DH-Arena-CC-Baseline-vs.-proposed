@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Bakersfield hourly load — baseline vs. proposed</title>
+<title>Bakersfield Proposed CC | IceBrick Saving Calculator</title>
 <script>
 
 /*
@@ -115,7 +115,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   }
   .theme-btn:hover { background: var(--hover-wash); }
 
-  .views { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .views { display: none; }   /* stream switcher hidden — the tool opens straight into the ice analysis */
   .views .grp { display: flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--surface-1); }
   .views button {
     border: none; background: transparent; color: var(--text-secondary);
@@ -236,8 +236,8 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
 <div class="wrap">
   <header class="top">
     <div>
-      <h1>Bakersfield hourly load — baseline vs. proposed</h1>
-      <p class="subtitle">Hourly demand (kW), Oct&nbsp;2024 – Sep&nbsp;2025 · Arena (DHA) and Convention Center (CC) main meters, before and after renovation / central cooling plant</p>
+      <h1>Bakersfield Proposed CC | IceBrick Saving Calculator</h1>
+      <p class="subtitle">Hourly demand (kW), Oct&nbsp;2024 – Sep&nbsp;2025 · ice storage fit, PG&E B-20 / B-20S billing, and annual savings on the proposed load</p>
     </div>
     <button class="theme-btn" id="themeBtn" type="button">Dark mode</button>
   </header>
@@ -249,8 +249,8 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
     <div class="ice-inputs">
       <label>Load stream
         <select id="inpStream">
-          <option value="cProp">Proposed combined (Arena + CC)</option>
           <option value="pCC">Proposed CC only</option>
+          <option value="cProp">Proposed combined (Arena + CC)</option>
         </select></label>
       <label>Tariff
         <select id="inpTariff">
@@ -260,16 +260,16 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           <option value="B-20S|Primary">B-20S · Primary</option>
         </select></label>
       <label>System size (ton·h)
-        <input id="inpSize" type="number" min="0" step="50" value="0"></label>
+        <input id="inpSize" type="number" min="0" step="50" value="1000"></label>
       <button id="autoSizeBtn" type="button" title="Set size to the sweep optimum for max annual kW reduction">Auto-size</button>
       <label>Charge from (h)
-        <input id="inpChS" type="number" min="0" max="23" step="1" value="22"></label>
+        <input id="inpChS" type="number" min="0" max="23" step="1" value="23"></label>
       <label>Charge to (h)
-        <input id="inpChE" type="number" min="0" max="24" step="1" value="10"></label>
+        <input id="inpChE" type="number" min="0" max="24" step="1" value="7"></label>
       <label>Discharge from (h)
-        <input id="inpDiS" type="number" min="0" max="23" step="1" value="10"></label>
+        <input id="inpDiS" type="number" min="0" max="23" step="1" value="7"></label>
       <label>Discharge to (h)
-        <input id="inpDiE" type="number" min="1" max="24" step="1" value="22"></label>
+        <input id="inpDiE" type="number" min="1" max="24" step="1" value="23"></label>
       <label>Avoided kW/ton (winter / summer)
         <select id="inpAvoided">
           <option value="0.5|0.65">0.5 winter · 0.65 summer</option>
@@ -397,11 +397,11 @@ function monthlyPeaks(keys) { return MONTHS.map(m => ({ m, ...peakOf(keys, m.i0,
 const KW_PER_TON_CHG = 0.9;
 const SUMMER = mon => mon >= 6 && mon <= 9;   // Jun–Sep
 const ICE = {
-  size: 0, auto: true, rec: 0, maxAnnualGain: 0,
-  chS: 22, chE: 10,     // charge window [chS, chE); chS > chE wraps past midnight (default 22:00 prev day → 10:00)
-  diS: 10, diE: 22,     // discharge window [diS, diE); no wrap (default 10:00 → 22:00)
+  size: 1000, auto: false, rec: 0, maxAnnualGain: 0,   // preset: 1,000 ton·h (Auto-size still available)
+  chS: 23, chE: 7,      // charge window [chS, chE); chS > chE wraps past midnight (preset 23:00 prev day → 7:00)
+  diS: 7, diE: 23,      // discharge window [diS, diE); no wrap (preset 7:00 → 23:00)
   fW: 0.5, fS: 0.65,    // avoided kW per ton while discharging, winter / summer
-  stream: 'cProp',      // load stream the analysis runs on: 'cProp' | 'pCC'
+  stream: 'pCC',        // load stream the analysis runs on: 'cProp' | 'pCC' (preset: Proposed CC only)
   rate: 'B-20',         // selected tariff: 'B-20' | 'B-20S'
   volt: 'Secondary',    // selected service voltage
   mode: 'demand',       // dispatch, derived from the tariff: B-20 → 'demand', B-20S → 'b20s'
@@ -772,7 +772,7 @@ document.getElementById('themeBtn').addEventListener('click', () => { theme = th
 function cssVar(name) { return getComputedStyle(root).getPropertyValue(name).trim(); }
 
 /* ---------- view switcher ---------- */
-let activeView = 'bStack';
+let activeView = 'ice';
 const viewsEl = document.getElementById('views');
 function buildSwitcher() {
   viewsEl.textContent = '';
@@ -1637,7 +1637,7 @@ document.getElementById('autoSizeBtn').addEventListener('click', () => {
     b.addEventListener('click', () => pick(v.id));
     grid.appendChild(b);
   }
-  ov.hidden = false;
+  ov.hidden = true;   // start screen skipped — the page opens directly in the ice analysis
 }
 
 buildMonthButtons();
