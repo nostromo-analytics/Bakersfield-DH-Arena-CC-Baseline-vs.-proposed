@@ -247,6 +247,11 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   <div class="card" id="iceControls" hidden>
     <h2 style="font-size:15px;margin:0 0 10px">Ice storage — inputs</h2>
     <div class="ice-inputs">
+      <label>Load stream
+        <select id="inpStream">
+          <option value="cProp">Proposed combined (Arena + CC)</option>
+          <option value="pCC">Proposed CC only</option>
+        </select></label>
       <label>Tariff
         <select id="inpTariff">
           <option value="B-20|Secondary">B-20 · Secondary</option>
@@ -327,6 +332,12 @@ const N = DATA.t.length;
 // derived combined streams (Arena + CC per hour)
 DATA.cBase = DATA.bDHA.map((v, i) => Math.round((v + DATA.bCC[i]) * 10) / 10);
 DATA.cProp = DATA.pDHA.map((v, i) => Math.round((v + DATA.pCC[i]) * 10) / 10);
+// the load stream the ice analysis runs on (selectable in the ice view)
+const ICE_STREAMS = {
+  cProp: 'Proposed combined (Arena + CC)',
+  pCC: 'Proposed Convention Center (CC) only',
+};
+let ICELOAD = DATA.cProp;
 const TMS = DATA.t.map(s => +new Date(s + ':00Z'));   // treat as UTC to avoid browser-TZ DST remapping
 
 const METERS = {
@@ -345,7 +356,7 @@ const VIEWS = [
   { id: 'pCC',  label: 'Convention Center (CC)', meters: ['pCC'], scen: 'Proposed' },
   { id: 'pStack', label: 'Both, stacked', meters: ['pDHA','pCC'], scen: 'Proposed', stacked: true },
   { id: 'cmp', label: 'Baseline vs. Proposed', meters: ['cBase','cProp'], scen: 'Compare', compare: true },
-  { id: 'ice', label: 'Proposed combined — ice fit', meters: ['cProp'], scen: 'Ice storage', ice: true },
+  { id: 'ice', label: 'Ice fit — Proposed (combined or CC only)', meters: ['cProp'], scen: 'Ice storage', ice: true },
 ];
 
 /* ---------- month partitions & peaks ---------- */
@@ -390,12 +401,13 @@ const ICE = {
   chS: 22, chE: 10,     // charge window [chS, chE); chS > chE wraps past midnight (default 22:00 prev day → 10:00)
   diS: 10, diE: 22,     // discharge window [diS, diE); no wrap (default 10:00 → 22:00)
   fW: 0.5, fS: 0.65,    // avoided kW per ton while discharging, winter / summer
+  stream: 'cProp',      // load stream the analysis runs on: 'cProp' | 'pCC'
   rate: 'B-20',         // selected tariff: 'B-20' | 'B-20S'
   volt: 'Secondary',    // selected service voltage
   mode: 'demand',       // dispatch, derived from the tariff: B-20 → 'demand', B-20S → 'b20s'
   sim: null, simCache: {}, sweepDone: false, sweepKey: '',
 };
-const winKey = () => ICE.chS + '|' + ICE.chE + '|' + ICE.diS + '|' + ICE.diE + '|' + ICE.fW + '|' + ICE.fS;
+const winKey = () => ICE.stream + '|' + ICE.chS + '|' + ICE.chE + '|' + ICE.diS + '|' + ICE.diE + '|' + ICE.fW + '|' + ICE.fS;
 const isDisHour = h => h >= ICE.diS && h < ICE.diE;
 const isChgHour = h => {
   if (ICE.chS === ICE.chE) return false;
@@ -465,7 +477,7 @@ function simulateIce(C) {
     for (let di = 0; di < DAYS.length; di++)
       if (DAYS[di].i0 >= m.i0 && DAYS[di].i1 <= m.i1) mdays.push(di);
     let oldPk = 0;
-    for (let i = m.i0; i <= m.i1; i++) oldPk = Math.max(oldPk, DATA.cProp[i]);
+    for (let i = m.i0; i <= m.i1; i++) oldPk = Math.max(oldPk, ICELOAD[i]);
 
     // E_d needed at threshold T, or -1 if infeasible for that day
     const dayNeed = (di, T) => {
@@ -473,14 +485,14 @@ function simulateIce(C) {
       let E = 0, mx = 0;
       for (let i = day.i0; i <= day.i1; i++) {
         if (!isDisHour(HOD[i])) continue;
-        const s = DATA.cProp[i] - T;
+        const s = ICELOAD[i] - T;
         if (s > 0) { E += s / f; mx = Math.max(mx, s); }
       }
       if (E - 1e-9 > C || mx - 1e-9 > f * R) return -1;
       if (E > 1e-9) {
         const chIdx = chargeIdxForDay(di);
         if (!chIdx.length) return -1;
-        if (fillLevel(chIdx.map(i => DATA.cProp[i]), KW_PER_TON_CHG * E) - 1e-6 > T) return -1;
+        if (fillLevel(chIdx.map(i => ICELOAD[i]), KW_PER_TON_CHG * E) - 1e-6 > T) return -1;
       }
       return E;
     };
@@ -503,13 +515,13 @@ function simulateIce(C) {
         let E = 0;
         for (let i = day.i0; i <= day.i1; i++) {
           if (!isDisHour(HOD[i])) continue;
-          const s = DATA.cProp[i] - T;
+          const s = ICELOAD[i] - T;
           if (s > 0) { shave[i] = s; E += s / f; }
         }
         const chIdx = chargeIdxForDay(di);
         if (E > 1e-9 && chIdx.length) {
-          const lam = fillLevel(chIdx.map(i => DATA.cProp[i]), KW_PER_TON_CHG * E);
-          for (const i of chIdx) charge[i] = Math.max(0, lam - DATA.cProp[i]);
+          const lam = fillLevel(chIdx.map(i => ICELOAD[i]), KW_PER_TON_CHG * E);
+          for (const i of chIdx) charge[i] = Math.max(0, lam - ICELOAD[i]);
         }
         perDay[di].chargeTonH = E;
         perDay[di].dischargeTonH = E;
@@ -557,12 +569,12 @@ function simulateB20S(C) {
         if (isDisHour(HOD[i])) { dis.push(i); if (HOD[i] >= 16 && HOD[i] < 21) peak.push(i); }
       const chIdx = chargeIdxForDay(di);
       if (!dis.length || !chIdx.length || C <= 0) continue;
-      const chBase = chIdx.map(i => DATA.cProp[i]);
+      const chBase = chIdx.map(i => ICELOAD[i]);
       const totals = T2 => {
         let E = 0, mx = 0;
         for (const i of dis) {
           const tgt = (HOD[i] >= 16 && HOD[i] < 21) ? T2 : Tm;
-          const s = Math.max(0, DATA.cProp[i] - tgt);
+          const s = Math.max(0, ICELOAD[i] - tgt);
           E += s / f; mx = Math.max(mx, s);
         }
         return [E, mx];
@@ -574,7 +586,7 @@ function simulateB20S(C) {
         return true;
       };
       let hiPk = 0;
-      for (const i of peak) hiPk = Math.max(hiPk, DATA.cProp[i]);
+      for (const i of peak) hiPk = Math.max(hiPk, ICELOAD[i]);
       const lo = Math.max(0, hiPk - f * R);
       let T2 = Tm;
       if (ok(lo)) T2 = lo;
@@ -589,12 +601,12 @@ function simulateB20S(C) {
       let E = 0;
       for (const i of dis) {
         const tgt = (HOD[i] >= 16 && HOD[i] < 21) ? T2 : Tm;
-        const s = Math.max(0, DATA.cProp[i] - tgt);
+        const s = Math.max(0, ICELOAD[i] - tgt);
         shave[i] = s; E += s / f;
       }
       if (E > 1e-9) {
         const lam = fillLevel(chBase, KW_PER_TON_CHG * E);
-        for (const i of chIdx) charge[i] = Math.max(0, lam - DATA.cProp[i]);
+        for (const i of chIdx) charge[i] = Math.max(0, lam - ICELOAD[i]);
       }
       perDay[di].chargeTonH = E;
       perDay[di].dischargeTonH = E;
@@ -686,12 +698,12 @@ function billAnnual(kw, trf) {
 // monthly results; withBills adds exact-tariff $ columns for the SELECTED tariff
 function iceMonthly(sim, withBills) {
   const trf = TARIFFS[ICE.rate + '|' + ICE.volt];
-  const after = withBills ? DATA.cProp.map((v, i) => v + sim.charge[i] - sim.shave[i]) : null;
+  const after = withBills ? ICELOAD.map((v, i) => v + sim.charge[i] - sim.shave[i]) : null;
   return MONTHS.map(m => {
     const summer = SUMMER(+m.key.slice(5, 7));
     let oldPk = -Infinity, newPk = -Infinity, oi = m.i0, ni = m.i0, chg = 0, dis = 0;
     for (let i = m.i0; i <= m.i1; i++) {
-      const L = DATA.cProp[i], net = L + sim.charge[i] - sim.shave[i];
+      const L = ICELOAD[i], net = L + sim.charge[i] - sim.shave[i];
       if (L > oldPk) { oldPk = L; oi = i; }
       if (net > newPk) { newPk = net; ni = i; }
       chg += sim.charge[i]; dis += sim.shave[i];
@@ -700,7 +712,7 @@ function iceMonthly(sim, withBills) {
     const r = { m, summer, oldPk, newPk, oi, ni, gain,
                 chg, dis, balKWh: dis - chg, gainD: 0, balCost: 0 };
     if (withBills) {
-      const pb = billMonthParts(DATA.cProp, trf, m);
+      const pb = billMonthParts(ICELOAD, trf, m);
       const pa = billMonthParts(after, trf, m);
       r.gainD = pb.demand - pa.demand;    // exact demand-charge saving this month
       r.balCost = pb.energy - pa.energy;  // exact energy-cost saving (negative = penalty)
@@ -1024,7 +1036,7 @@ function buildIceChart() {
   const sim = ICE.sim;
   const before = [], after = [], chg = [], dis = [];
   for (let i = 0; i < N; i++) {
-    const L = DATA.cProp[i];
+    const L = ICELOAD[i];
     before.push([TMS[i], L]);
     after.push([TMS[i], Math.round((L + sim.charge[i] - sim.shave[i]) * 10) / 10]);
     chg.push([TMS[i], Math.round(sim.charge[i] * 10) / 10]);
@@ -1038,7 +1050,7 @@ function buildIceChart() {
     let noon = d.i0, top = 0;
     for (let i = d.i0; i <= d.i1; i++) {
       if (HOD[i] === 12) noon = i;
-      top = Math.max(top, DATA.cProp[i] + sim.charge[i]);
+      top = Math.max(top, ICELOAD[i] + sim.charge[i]);
     }
     dayLabelData.push([TMS[noon], top]);
     dayLabelText.push('chg ' + fmtInt(d.chargeTonH) + ' t·h\ndis ' + fmtInt(d.dischargeTonH) + ' t·h');
@@ -1198,7 +1210,7 @@ function balCell(tr, v, fmt) {
 
 function renderIceTable() {
   const tbl = clearTable();
-  document.getElementById('tblTitle').textContent = 'Ice storage — monthly results (Proposed combined)';
+  document.getElementById('tblTitle').textContent = 'Ice storage — monthly results (' + ICE_STREAMS[ICE.stream] + ')';
   const thead = tbl.createTHead();
   const hr = thead.insertRow();
   for (const c of ['Month', 'Peak before kW', 'Peak after kW', 'kW gain', 'Demand $ gain',
@@ -1288,8 +1300,8 @@ function renderIcePlan() {
 function currentBill() {
   const rate = ICE.rate;
   const trf = TARIFFS[rate + '|' + ICE.volt];
-  const after = DATA.cProp.map((v, i) => v + ICE.sim.charge[i] - ICE.sim.shave[i]);
-  const b = billAnnual(DATA.cProp, trf);
+  const after = ICELOAD.map((v, i) => v + ICE.sim.charge[i] - ICE.sim.shave[i]);
+  const b = billAnnual(ICELOAD, trf);
   const a = billAnnual(after, trf);
   return { rate, b, a, save: b - a };
 }
@@ -1311,7 +1323,7 @@ function renderTariffCard() {
   const tbl = document.getElementById('tariffTable');
   while (tbl.tBodies.length) tbl.removeChild(tbl.tBodies[0]);
   while (tbl.tHead) tbl.removeChild(tbl.tHead);
-  const before = DATA.cProp;
+  const before = ICELOAD;
   const simD = simulateIce(ICE.size);
   const simS = simulateB20S(ICE.size);
   const afterD = before.map((v, i) => v + simD.charge[i] - simD.shave[i]);
@@ -1346,7 +1358,7 @@ function renderTariffCard() {
     }
   }
   document.getElementById('tariffSub').textContent =
-    'Bills computed hour-by-hour on the Proposed combined stream at the current system size (' + fmtInt(ICE.size) +
+    'Bills computed hour-by-hour on the “' + ICE_STREAMS[ICE.stream] + '” stream at the current system size (' + fmtInt(ICE.size) +
     ' ton·h) and charge/discharge windows. B-20 “after” uses the monthly demand-target dispatch; B-20S “after” uses the B-20S-optimized dispatch ' +
     '(demand-target thresholds plus flattening the 16:00–21:00 window every day — B-20S bills daily $/kW-day peak charges and high peak energy). ' +
     'TOU: summer (Jun–Sep) peak 16–21, part-peak 14–16 & 21–23; winter peak 16–21, super off-peak 9–14 Mar–May. Includes customer, energy and demand charges; ' +
@@ -1355,6 +1367,7 @@ function renderTariffCard() {
 }
 
 function syncIceInputs() {
+  document.getElementById('inpStream').value = ICE.stream;
   document.getElementById('inpTariff').value = ICE.rate + '|' + ICE.volt;
   document.getElementById('inpSize').value = ICE.size;
   document.getElementById('inpChS').value = ICE.chS;
@@ -1545,12 +1558,13 @@ function renderAll() {
   document.getElementById('iceSummary').hidden = !iceMode;
   document.getElementById('tariffCard').hidden = !iceMode;
   if (iceMode) {
+    ICELOAD = DATA[ICE.stream];
     runSweep();
     if (ICE.auto) ICE.size = ICE.rec;
     syncIceInputs();
     renderRateInfo();
     ICE.sim = ICE.mode === 'b20s' ? simulateB20S(ICE.size) : simulateIce(ICE.size);
-    document.getElementById('chartTitle').textContent = 'Ice storage fit — Proposed combined (Arena + CC)';
+    document.getElementById('chartTitle').textContent = 'Ice storage fit — ' + ICE_STREAMS[ICE.stream];
     document.getElementById('chartSub').textContent =
       'Charging (dark blue, +0.9 kW/ton, ' + fmtH(ICE.chS) + '–' + fmtH(ICE.chE) +
       (ICE.chS >= ICE.chE ? ' overnight' : '') + ') · discharging (light blue, avoids ' + ICE.fW + ' kW/ton Oct–May / ' + ICE.fS + ' kW/ton Jun–Sep, ' +
@@ -1596,13 +1610,14 @@ function readIceInputs() {
   const [fW, fS] = document.getElementById('inpAvoided').value.split('|').map(parseFloat);
   ICE.fW = fW || 0.5;
   ICE.fS = fS || 0.65;
+  ICE.stream = document.getElementById('inpStream').value === 'pCC' ? 'pCC' : 'cProp';
   const [rate, volt] = document.getElementById('inpTariff').value.split('|');
   ICE.rate = rate === 'B-20S' ? 'B-20S' : 'B-20';
   ICE.volt = volt === 'Primary' ? 'Primary' : 'Secondary';
   ICE.mode = ICE.rate === 'B-20S' ? 'b20s' : 'demand';
   renderAll();
 }
-for (const id of ['inpTariff', 'inpSize', 'inpChS', 'inpChE', 'inpDiS', 'inpDiE', 'inpAvoided'])
+for (const id of ['inpStream', 'inpTariff', 'inpSize', 'inpChS', 'inpChE', 'inpDiS', 'inpDiE', 'inpAvoided'])
   document.getElementById(id).addEventListener('change', readIceInputs);
 document.getElementById('autoSizeBtn').addEventListener('click', () => {
   ICE.auto = true;
