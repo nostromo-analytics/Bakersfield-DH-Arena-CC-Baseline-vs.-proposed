@@ -642,53 +642,60 @@ function simulateB19S(C, volt) {
     return true;
   }
 
-  // summer: spend leftover ton·h on 16–21 arbitrage below the thresholds
-  function arbFill(m, f, Tcap, charge, shave) {
-    if (!SUMMER(+m.key.slice(5, 7))) return;
+  // summer: spend leftover ton·h on arbitrage discharge below the thresholds,
+  // level-filling tier by tier: scope 1 = 16–21 peak only; 2 = + part-peak
+  // (14–16, 21–23); 3 = every discharge-window hour.
+  const isPart = h => (h >= 14 && h < 16) || (h >= 21 && h < 23);
+  function arbFill(m, f, Tcap, charge, shave, scope) {
+    if (!SUMMER(+m.key.slice(5, 7)) || scope < 1) return;
     for (const di of monthDays(m)) {
       const day = DAYS[di];
-      const dis = [], wins = [];
-      for (let i = day.i0; i <= day.i1; i++)
-        if (isDisHour(HOD[i])) { dis.push(i); if (isWin(HOD[i])) wins.push(i); }
+      const dis = [];
+      for (let i = day.i0; i <= day.i1; i++) if (isDisHour(HOD[i])) dis.push(i);
       const chIdx = chargeIdxForDay(di);
-      if (!wins.length || !chIdx.length) continue;
+      if (!dis.length || !chIdx.length) continue;
+      const tiers = [dis.filter(i => isWin(HOD[i]))];
+      if (scope >= 2) tiers.push(dis.filter(i => isPart(HOD[i])));
+      if (scope >= 3) tiers.push(dis.filter(i => !isWin(HOD[i]) && !isPart(HOD[i])));
+      const chBase = chIdx.map(i => ICELOAD[i]);
       let used = 0;
       for (const i of dis) used += shave[i] / f;
-      const left = C - used;
-      if (left <= 1e-6) continue;
-      const chBase = chIdx.map(i => ICELOAD[i]);
-      const lev = wins.map(i => ICELOAD[i] - shave[i]);
-      const cap = wins.map(i => f * R - shave[i]);
-      const extraAt = lam => {
-        let E = 0;
-        for (let j = 0; j < wins.length; j++)
-          E += Math.min(Math.max(0, lev[j] - lam), Math.max(0, cap[j]));
-        return E / f;
-      };
-      const okf = lam => {
-        const ex = extraAt(lam);
-        if (ex - 1e-9 > left) return false;
-        const Etot = used + ex;
-        if (Etot > 1e-9 && fillLevel(chBase, KW_PER_TON_CHG * Etot) - 1e-6 > Tcap) return false;
-        return true;
-      };
-      let lam = Math.max(...lev, 0);
-      if (okf(0)) lam = 0;
-      else {
-        let a = 0, b = lam;
-        for (let k = 0; k < 40; k++) {
-          const mid = (a + b) / 2;
-          if (okf(mid)) b = mid; else a = mid;
+      for (const tier of tiers) {
+        if (!tier.length) continue;
+        const left = C - used;
+        if (left <= 1e-6) break;
+        const lev = tier.map(i => ICELOAD[i] - shave[i]);
+        const cap = tier.map(i => f * R - shave[i]);
+        const extraAt = lam => {
+          let E = 0;
+          for (let j = 0; j < tier.length; j++)
+            E += Math.min(Math.max(0, lev[j] - lam), Math.max(0, cap[j]));
+          return E / f;
+        };
+        const okf = lam => {
+          const ex = extraAt(lam);
+          if (ex - 1e-9 > left) return false;
+          const Etot = used + ex;
+          if (Etot > 1e-9 && fillLevel(chBase, KW_PER_TON_CHG * Etot) - 1e-6 > Tcap) return false;
+          return true;
+        };
+        let lam = Math.max(0, ...lev);
+        if (okf(0)) lam = 0;
+        else {
+          let a = 0, b = lam;
+          for (let k = 0; k < 40; k++) {
+            const mid = (a + b) / 2;
+            if (okf(mid)) b = mid; else a = mid;
+          }
+          lam = b;
         }
-        lam = b;
+        for (let j = 0; j < tier.length; j++) {
+          const ex = Math.min(Math.max(0, lev[j] - lam), Math.max(0, cap[j]));
+          if (ex > 1e-9) { shave[tier[j]] += ex; used += ex / f; }
+        }
       }
-      let Etot = used;
-      for (let j = 0; j < wins.length; j++) {
-        const ex = Math.min(Math.max(0, lev[j] - lam), Math.max(0, cap[j]));
-        if (ex > 1e-9) { shave[wins[j]] += ex; Etot += ex / f; }
-      }
-      if (Etot > 1e-9) {
-        const lam2 = fillLevel(chBase, KW_PER_TON_CHG * Etot);
+      if (used > 1e-9) {
+        const lam2 = fillLevel(chBase, KW_PER_TON_CHG * used);
         for (const i of chIdx) charge[i] = Math.max(0, lam2 - ICELOAD[i]);
       }
     }
@@ -706,14 +713,17 @@ function simulateB19S(C, volt) {
       let oldPk = 0;
       for (let i = m.i0; i <= m.i1; i++) oldPk = Math.max(oldPk, ICELOAD[i]);
       let best = null;
+      const scopes = SUMMER(+m.key.slice(5, 7)) ? [1, 2, 3] : [1];
       for (const fr of [0, 0.15, 0.35, 0.6, 1.0]) {
-        const Tcap = Tm + fr * (oldPk - Tm);
-        const c2 = Float64Array.from(charge), s2 = Float64Array.from(shave);
-        for (let i = m.i0; i <= m.i1; i++) { c2[i] = 0; s2[i] = 0; }
-        if (!dispatchMonth(m, f, Tcap, c2, s2)) continue;
-        arbFill(m, f, Tcap, c2, s2);
-        const cost = billMonthParts(netOf(c2, s2), trf, m).total;
-        if (!best || cost < best.cost) best = { cost, c2, s2 };
+        for (const scope of scopes) {
+          const Tcap = Tm + fr * (oldPk - Tm);
+          const c2 = Float64Array.from(charge), s2 = Float64Array.from(shave);
+          for (let i = m.i0; i <= m.i1; i++) { c2[i] = 0; s2[i] = 0; }
+          if (!dispatchMonth(m, f, Tcap, c2, s2)) continue;
+          arbFill(m, f, Tcap, c2, s2, scope);
+          const cost = billMonthParts(netOf(c2, s2), trf, m).total;
+          if (!best || cost < best.cost) best = { cost, c2, s2 };
+        }
       }
       if (best) { charge = best.c2; shave = best.s2; }
     }
@@ -1548,7 +1558,7 @@ function renderRateInfo() {
   note.className = 'rate-note';
   note.textContent = 'Dispatch follows the tariff: ' + (b20
     ? 'B-19 → monthly demand-target dispatch (cycles only on days that threaten the monthly maximums).'
-    : 'B-19S → bill-optimal daily dispatch: the 16:00–21:00 window is discharged as deep as resources allow every day ($/kW·day charges + peak-rate energy), leftover summer ton·h do pure 16–21 arbitrage, and each month the trade-off against the Maximum-1/2 monthly targets is optimized on the exact bill.');
+    : 'B-19S → bill-optimal daily dispatch: the 16:00–21:00 window is discharged as deep as resources allow every day ($/kW·day charges + peak-rate energy); leftover summer ton·h spread to part-peak and — when the avoided-kW/ton figures make the kWh positive — to all discharge hours; the arbitrage scope and the trade-off against the Maximum-1/2 monthly targets are optimized per month on the exact bill.');
   el.appendChild(note);
 }
 
