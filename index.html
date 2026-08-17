@@ -115,7 +115,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
   }
   .theme-btn:hover { background: var(--hover-wash); }
 
-  .views { display: none; }   /* stream switcher hidden — the tool opens straight into the ice analysis */
+  .views { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
   .views .grp { display: flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--surface-1); }
   .views button {
     border: none; background: transparent; color: var(--text-secondary);
@@ -239,8 +239,17 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
       <h1>Bakersfield Proposed CC | IceBrick Saving Calculator</h1>
       <p class="subtitle">Hourly demand (kW), Oct&nbsp;2024 – Sep&nbsp;2025 · ice storage fit, PG&E B-19 / B-19S billing, and annual savings on the proposed load</p>
     </div>
-    <button class="theme-btn" id="themeBtn" type="button">Dark mode</button>
+    <div style="display:flex;gap:8px;flex:none">
+      <button class="theme-btn" id="simBtn" type="button" style="font-weight:600">Future profile simulation</button>
+      <button class="theme-btn" id="themeBtn" type="button">Dark mode</button>
+    </div>
   </header>
+  <div class="card" id="simNote" hidden style="padding:12px 18px;border-left:3px solid var(--ice-chg)">
+    <b>Illustration of the future demand profile of the Bakersfield Convention Center.</b>
+    Nights where the operator ran the chillers through the night are simulated as switched off at midnight and back on around 08:00
+    (those hours are replaced by the month's quiet-night load profile). The original metered curve is shown in gray for reference,
+    and the entire analysis below — ice fit, dispatch, and B-19/B-19S billing — runs on this simulated data set.
+  </div>
 
   <div class="views" id="views" role="group" aria-label="Choose meter view"></div>
 
@@ -260,7 +269,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
           <option value="B-19S|Primary">B-19S · Primary</option>
         </select></label>
       <label>System size (ton·h)
-        <input id="inpSize" type="number" min="0" step="50" value="1000"></label>
+        <input id="inpSize" type="number" min="0" step="50" value="1400"></label>
       <button id="autoSizeBtn" type="button" title="Set size to the sweep optimum for max annual kW reduction">Auto-size</button>
       <label>Charge from (h)
         <input id="inpChS" type="number" min="0" max="23" step="1" value="23"></label>
@@ -270,7 +279,7 @@ var Fr={},Gr={};var Wr,Hr=function(){function t(t,e,n){var i=this;this._sleepAft
         <input id="inpDiS" type="number" min="0" max="23" step="1" value="7"></label>
       <label>Discharge to (h)
         <input id="inpDiE" type="number" min="1" max="24" step="1" value="23"></label>
-      <label>Avoided kW/ton (winter / summer)
+      <label>Avoided kW/ton, financial credit (winter / summer)
         <select id="inpAvoided">
           <option value="0.5|0.65">0.5 winter · 0.65 summer</option>
           <option value="1|1.2">1.0 winter · 1.2 summer</option>
@@ -343,6 +352,53 @@ const ICE_STREAMS = {
   pCC: 'Proposed Convention Center (CC) only',
 };
 let ICELOAD = DATA.cProp;
+
+/* ---------- future-profile simulation: overnight chiller shutdown ----------
+   Nights where the operator ran chillers through the night are detected per
+   month (00–08 mean > max(1.4×, +20 kW over) the month's quiet-night floor)
+   and replaced by the month's quiet-night hourly profile — chillers off at
+   midnight, back on at 08:00. */
+let SIMMODE = false;
+function buildSimStream(src) {
+  const out = src.slice();
+  const dayIdx = [];               // per day: indices of hours 0..7
+  {
+    let cur = null;
+    for (let i = 0; i < src.length; i++) {
+      const dd = DATA.t[i].slice(0, 10);
+      if (!cur || cur.dd !== dd) { cur = { dd, mon: DATA.t[i].slice(0, 7), night: [], all: [] }; dayIdx.push(cur); }
+      cur.all.push(i);
+      if (+DATA.t[i].slice(11, 13) < 8) cur.night.push(i);
+    }
+  }
+  const byMonth = {};
+  for (const d of dayIdx) (byMonth[d.mon] = byMonth[d.mon] || []).push(d);
+  const median = a => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+  for (const mon in byMonth) {
+    const ds = byMonth[mon].filter(d => d.night.length >= 6);
+    if (!ds.length) continue;
+    const means = ds.map(d => d.night.reduce((s, i) => s + src[i], 0) / d.night.length);
+    const sorted = means.slice().sort((a, b) => a - b);
+    const q25 = sorted[Math.floor(sorted.length / 4)];
+    const thresh = Math.max(q25 * 1.4, q25 + 20);
+    const flagged = ds.filter((d, j) => means[j] > thresh);
+    const quiet = ds.filter((d, j) => means[j] <= thresh);
+    // quiet-night hourly profile 0..7
+    const prof = [];
+    for (let h = 0; h < 8; h++) {
+      const vals = [];
+      for (const d of quiet) for (const i of d.night) if (+DATA.t[i].slice(11, 13) === h) vals.push(src[i]);
+      prof[h] = vals.length ? median(vals) : q25;
+    }
+    for (const d of flagged)
+      for (const i of d.night)
+        out[i] = Math.round(Math.min(src[i], prof[+DATA.t[i].slice(11, 13)]) * 10) / 10;
+  }
+  return out;
+}
+DATA.pCCsim = buildSimStream(DATA.pCC);
+DATA.cPropsim = DATA.pDHA.map((v, i) => Math.round((v + DATA.pCCsim[i]) * 10) / 10);
+const simStreamOf = key => key === 'pCC' ? DATA.pCCsim : DATA.cPropsim;
 const TMS = DATA.t.map(s => +new Date(s + ':00Z'));   // treat as UTC to avoid browser-TZ DST remapping
 
 const METERS = {
@@ -402,10 +458,11 @@ function monthlyPeaks(keys) { return MONTHS.map(m => ({ m, ...peakOf(keys, m.i0,
 const KW_PER_TON_CHG = 0.9;
 const SUMMER = mon => mon >= 6 && mon <= 9;   // Jun–Sep
 const ICE = {
-  size: 1000, auto: false, rec: 0, maxAnnualGain: 0,   // preset: 1,000 ton·h (Auto-size still available)
+  size: 1400, auto: false, rec: 0, maxAnnualGain: 0,   // preset: 1,400 ton·h (Auto-size still available)
   chS: 23, chE: 7,      // charge window [chS, chE); chS > chE wraps past midnight (preset 23:00 prev day → 7:00)
   diS: 7, diE: 23,      // discharge window [diS, diE); no wrap (preset 7:00 → 23:00)
-  fW: 0.5, fS: 0.65,    // avoided kW per ton while discharging, winter / summer
+  fW: 0.5, fS: 0.65,    // PHYSICAL avoided kW/ton at the meter — fixed, drives dispatch, graph, demand
+  gW: 0.5, gS: 0.65,    // FINANCIAL avoided kW/ton — selector; only scales the $ energy credit
   effBonus: true,       // while discharging, the remaining load is served 15% more efficiently
   stream: 'pCC',        // load stream the analysis runs on: 'cProp' | 'pCC' (preset: Proposed CC only)
   rate: 'B-19',         // selected tariff: 'B-19' | 'B-19S'
@@ -414,7 +471,24 @@ const ICE = {
   sim: null, simCache: {}, sweepDone: false, sweepKey: '',
 };
 const EFF_BONUS = 0.15;   // efficiency gain on the remaining load during discharge hours
-const winKey = () => ICE.stream + '|' + ICE.chS + '|' + ICE.chE + '|' + ICE.diS + '|' + ICE.diE + '|' + ICE.fW + '|' + ICE.fS + '|' + (ICE.effBonus ? 'b' : 'n');
+const winKey = () => (SIMMODE ? 'sim|' : 'act|') + ICE.stream + '|' + ICE.chS + '|' + ICE.chE + '|' + ICE.diS + '|' + ICE.diE + '|' + ICE.gW + '|' + ICE.gS + '|' + (ICE.effBonus ? 'b' : 'n');
+// financial energy credit: each discharged ton·h is credited at gW/gS kWh in the
+// $ figures while the meter only avoids fW/fS kWh — the credit is the difference
+function energyCreditMonth(shave, trf, m) {
+  const summer = SUMMER(+m.key.slice(5, 7));
+  const ratio = summer ? ICE.gS / ICE.fS : ICE.gW / ICE.fW;
+  if (Math.abs(ratio - 1) < 1e-9) return 0;
+  const er = trf.energy[summer ? 'summer' : 'winter'];
+  let c = 0;
+  for (let i = m.i0; i <= m.i1; i++)
+    if (shave[i] > 0) c += shave[i] * (ratio - 1) * er[TOU(i)];
+  return c;
+}
+function energyCreditAnnual(shave, trf) {
+  let c = 0;
+  for (const m of MONTHS) c += energyCreditMonth(shave, trf, m);
+  return c;
+}
 // extra avoided kW from the efficiency bonus at hour i (0 when not discharging)
 function bonusArray(shave) {
   const bonus = new Float64Array(N);
@@ -721,7 +795,7 @@ function simulateB19S(C, volt) {
           for (let i = m.i0; i <= m.i1; i++) { c2[i] = 0; s2[i] = 0; }
           if (!dispatchMonth(m, f, Tcap, c2, s2)) continue;
           arbFill(m, f, Tcap, c2, s2, scope);
-          const cost = billMonthParts(netOf(c2, s2), trf, m).total;
+          const cost = billMonthParts(netOf(c2, s2), trf, m).total - energyCreditMonth(s2, trf, m);
           if (!best || cost < best.cost) best = { cost, c2, s2 };
         }
       }
@@ -838,7 +912,8 @@ function iceMonthly(sim, withBills) {
       const pb = billMonthParts(ICELOAD, trf, m);
       const pa = billMonthParts(after, trf, m);
       r.gainD = pb.demand - pa.demand;    // exact demand-charge saving this month
-      r.balCost = pb.energy - pa.energy;  // exact energy-cost saving (negative = penalty)
+      // energy saving incl. the financial credit (gW/gS vs the physical fW/fS)
+      r.balCost = pb.energy - pa.energy + energyCreditMonth(sim.shave, trf, m);
     }
     return r;
   });
@@ -892,6 +967,11 @@ function setTheme(t) {
 }
 let theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 document.getElementById('themeBtn').addEventListener('click', () => { theme = theme === 'dark' ? 'light' : 'dark'; setTheme(theme); });
+document.getElementById('simBtn').addEventListener('click', () => {
+  SIMMODE = !SIMMODE;
+  document.getElementById('simBtn').textContent = SIMMODE ? '← Back to actual data' : 'Future profile simulation';
+  renderAll();
+});
 function cssVar(name) { return getComputedStyle(root).getPropertyValue(name).trim(); }
 
 /* ---------- view switcher ---------- */
@@ -1181,7 +1261,17 @@ function buildIceChart() {
 
   if (chart) chart.dispose();
   chart = echarts.init(chartEl, null, { renderer: 'canvas' });
-  const NAMES = { before: 'Load — before ice', after: 'Load — after ice', chg: 'Charging (added kW)', dis: 'Discharging (avoided kW)' };
+  const NAMES = { before: 'Load — before ice', after: 'Load — after ice', chg: 'Charging (added kW)', dis: 'Discharging (avoided kW)', ref: 'Actual metered (reference)' };
+  const refSeries = [];
+  const refLegend = [];
+  if (SIMMODE) {
+    const actual = DATA[ICE.stream];
+    refSeries.push({ name: NAMES.ref, type: 'line', showSymbol: false,
+      color: muted, lineStyle: { width: 1.5, opacity: 0.7 },
+      emphasis: { disabled: true }, z: 4,
+      data: actual.map((v, i) => [TMS[i], v]) });
+    refLegend.push({ name: NAMES.ref, icon: 'roundRect', itemStyle: { color: muted } });
+  }
   chart.setOption({
     backgroundColor: 'transparent',
     animation: false,
@@ -1189,12 +1279,12 @@ function buildIceChart() {
     legend: {
       top: 0, right: 96, itemWidth: 14, itemHeight: 10,
       textStyle: { color: sec, fontSize: 12.5 },
-      data: [
+      data: refLegend.concat([
         { name: NAMES.before, icon: 'roundRect', itemStyle: { color: violet } },
         { name: NAMES.after, icon: 'roundRect', itemStyle: { color: ink } },
         { name: NAMES.chg, icon: 'rect', itemStyle: { color: chgC } },
         { name: NAMES.dis, icon: 'rect', itemStyle: { color: disC } },
-      ],
+      ]),
     },
     grid: { left: 58, right: 18, top: 32, bottom: 74 },
     toolbox: {
@@ -1263,14 +1353,16 @@ function buildIceChart() {
           r.append(key, val, nm);
           box.appendChild(r);
         };
-        row(violet, fmtKW(bf.value[1]) + ' kW', 'Before ice');
+        const rf = keep[NAMES.ref];
+        if (rf) row(muted, fmtKW(rf.value[1]) + ' kW', 'Actual (reference)');
+        row(violet, fmtKW(bf.value[1]) + ' kW', 'Before ice' + (SIMMODE ? ' (simulated)' : ''));
         if (af) row(ink, fmtKW(af.value[1]) + ' kW', 'After ice');
         if (ch && ch.value[1] > 0) row(chgC, '+' + fmtKW(ch.value[1]) + ' kW', 'Charging');
         if (di && di.value[1] > 0) row(disC, '−' + fmtKW(di.value[1]) + ' kW', 'Discharging');
         return box;
       },
     },
-    series: [
+    series: refSeries.concat([
       { name: '_chgBase', type: 'line', stack: 'chg', data: before, showSymbol: false,
         lineStyle: { opacity: 0 }, silent: true, tooltip: { show: false }, z: 2 },
       { name: NAMES.chg, type: 'line', stack: 'chg', data: chg, showSymbol: false,
@@ -1293,7 +1385,7 @@ function buildIceChart() {
         label: { show: false, position: 'top', color: sec, fontSize: 11, lineHeight: 14,
           formatter: p => dayLabelText[p.dataIndex] },
         labelLayout: { hideOverlap: true } },
-    ],
+    ]),
   });
 
   const syncDayLabels = () => {
@@ -1375,7 +1467,10 @@ function renderIceTable() {
   for (const c of fr.cells) { c.style.textAlign = c.cellIndex === 0 ? 'left' : 'right'; c.style.padding = '7px 12px'; c.style.borderTop = '1px solid var(--axisline)'; c.style.fontVariantNumeric = 'tabular-nums'; }
   const sub = document.createElement('p');
   sub.className = 'tbl-sub'; sub.id = 'tblSub';
-  sub.textContent = 'kW gain = monthly peak before ice minus peak after ice — set by the single day whose discharged (net) peak is highest. “Demand $ gain” and “Balance $” are the exact ' + ICE.rate + ' ' + ICE.volt + ' bill components (demand charges and TOU energy cost, before − after) for the month. Balance kWh = discharging (avoided) − charging kWh; charged energy is a cost, avoided energy a gain — under B-19S the $ balance can be positive despite negative kWh, because discharge displaces peak-rate energy while charging buys off-peak. ☀ = summer months (Jun–Sep, ' + ICE.fS + ' kW/ton avoided; winter ' + ICE.fW + ').' +
+  sub.textContent = 'kW gain = monthly peak before ice minus peak after ice — set by the single day whose discharged (net) peak is highest. “Demand $ gain” and “Balance $” are the exact ' + ICE.rate + ' ' + ICE.volt + ' bill components (demand charges and TOU energy cost, before − after) for the month. Balance kWh = discharging (avoided) − charging kWh; charged energy is a cost, avoided energy a gain — under B-19S the $ balance can be positive despite negative kWh, because discharge displaces peak-rate energy while charging buys off-peak. ☀ = summer months (Jun–Sep, ' + ICE.fS + ' kW/ton avoided at the meter; winter ' + ICE.fW + ').' +
+    (ICE.gW !== ICE.fW || ICE.gS !== ICE.fS
+      ? ' “Balance $” additionally credits each discharged ton·h at the financial ' + ICE.gW + '/' + ICE.gS + ' kW/ton — the load curve, demand charges and kWh columns stay physical.'
+      : '') +
     (ICE.effBonus ? ' Avoided kWh includes the 15% efficiency bonus on the remaining load during discharge hours (dispatch thresholds are computed without it — conservative).' : '') +
     ' Click a row to zoom the chart to that month.';
   tbl.insertAdjacentElement('afterend', sub);
@@ -1427,7 +1522,7 @@ function currentBill() {
   const trf = TARIFFS[rate + '|' + ICE.volt];
   const after = ICELOAD.map((v, i) => v + ICE.sim.charge[i] - ICE.sim.shave[i] - ICE.sim.bonus[i]);
   const b = billAnnual(ICELOAD, trf);
-  const a = billAnnual(after, trf);
+  const a = billAnnual(after, trf) - energyCreditAnnual(ICE.sim.shave, trf);
   return { rate, b, a, save: b - a };
 }
 
@@ -1464,8 +1559,9 @@ function renderTariffCard() {
       let a;
       if (rate === 'B-19S') {
         const simS = simulateB19S(ICE.size, volt);
-        a = billAnnual(before.map((v, i) => v + simS.charge[i] - simS.shave[i] - simS.bonus[i]), trf);
-      } else a = billAnnual(afterD, trf);
+        a = billAnnual(before.map((v, i) => v + simS.charge[i] - simS.shave[i] - simS.bonus[i]), trf)
+            - energyCreditAnnual(simS.shave, trf);
+      } else a = billAnnual(afterD, trf) - energyCreditAnnual(simD.shave, trf);
       const tr = tbody.insertRow();
       if (volt === ICE.volt && rate === ICE.rate)
         tr.style.background = 'var(--sel-wash)';
@@ -1501,7 +1597,7 @@ function syncIceInputs() {
   document.getElementById('inpChE').value = ICE.chE;
   document.getElementById('inpDiS').value = ICE.diS;
   document.getElementById('inpDiE').value = ICE.diE;
-  document.getElementById('inpAvoided').value = ICE.fW + '|' + ICE.fS;
+  document.getElementById('inpAvoided').value = ICE.gW + '|' + ICE.gS;
   document.getElementById('inpBonus').value = ICE.effBonus ? 'on' : 'off';
 }
 
@@ -1685,19 +1781,24 @@ function renderAll() {
   document.getElementById('iceControls').hidden = !iceMode;
   document.getElementById('iceSummary').hidden = !iceMode;
   document.getElementById('tariffCard').hidden = !iceMode;
+  document.getElementById('simNote').hidden = !SIMMODE;
   if (iceMode) {
-    ICELOAD = DATA[ICE.stream];
+    ICELOAD = SIMMODE ? simStreamOf(ICE.stream) : DATA[ICE.stream];
     runSweep();
     if (ICE.auto) ICE.size = ICE.rec;
     syncIceInputs();
     renderRateInfo();
     ICE.sim = ICE.mode === 'b19s' ? simulateB19S(ICE.size) : simulateIce(ICE.size);
-    document.getElementById('chartTitle').textContent = 'Ice storage fit — ' + ICE_STREAMS[ICE.stream];
+    document.getElementById('chartTitle').textContent = 'Ice storage fit — ' + ICE_STREAMS[ICE.stream] +
+      (SIMMODE ? ' · simulated future profile' : '');
     document.getElementById('chartSub').textContent =
       'Charging (dark blue, +0.9 kW/ton, ' + fmtH(ICE.chS) + '–' + fmtH(ICE.chE) +
       (ICE.chS >= ICE.chE ? ' overnight' : '') + ') · discharging (light blue, avoids ' + ICE.fW + ' kW/ton Oct–May / ' + ICE.fS + ' kW/ton Jun–Sep, ' +
       fmtH(ICE.diS) + '–' + fmtH(ICE.diE) + ')' +
       (ICE.effBonus ? ' · +15% efficiency on the remaining load while discharging' : '') +
+      (ICE.gW !== ICE.fW || ICE.gS !== ICE.fS
+        ? ' · $ figures credit avoided energy at ' + ICE.gW + '/' + ICE.gS + ' kW/ton (meter behavior stays ' + ICE.fW + '/' + ICE.fS + ')'
+        : '') +
       ' · zoom in to see daily ton·h';
     buildIceChart();
     const tot = renderIceTable();
@@ -1737,9 +1838,9 @@ function readIceInputs() {
   ICE.diS = hour('inpDiS', ICE.diS, 23);
   ICE.diE = hour('inpDiE', ICE.diE, 24);
   if (ICE.diE <= ICE.diS) ICE.diE = Math.min(ICE.diS + 1, 24);  // discharge window can't wrap
-  const [fW, fS] = document.getElementById('inpAvoided').value.split('|').map(parseFloat);
-  ICE.fW = fW || 0.5;
-  ICE.fS = fS || 0.65;
+  const [gW, gS] = document.getElementById('inpAvoided').value.split('|').map(parseFloat);
+  ICE.gW = gW || 0.5;
+  ICE.gS = gS || 0.65;
   ICE.effBonus = document.getElementById('inpBonus').value !== 'off';
   ICE.stream = document.getElementById('inpStream').value === 'pCC' ? 'pCC' : 'cProp';
   const [rate, volt] = document.getElementById('inpTariff').value.split('|');
